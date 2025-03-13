@@ -1,4 +1,12 @@
-load("@rules_qt//:qt.bzl", "qt_cc_binary", "qt_cc_library")
+load("@rules_qt//:qt.bzl", "qt_cc_binary", "qt_cc_library", "qt_ui_library")
+
+qt_ui_library(
+    name = "mainwindow_ui",
+    ui = "mainwindow.ui",
+    deps = [
+        "@rules_qt//:qt_widgets",
+    ],
+)
 
 qt_cc_library(
     name = "mainwindow",
@@ -13,19 +21,12 @@ qt_cc_library(
     ],
 )
 
-qt_ui_library(
-    name = "mainwindow_ui",
-    ui = "mainwindow.ui",
-    deps = [
-        "@rules_qt//:qt_widgets",
-    ],
-)
-
 qt_cc_binary(
     name = "main",
     srcs = ["main.cpp"],
     deps = [
         ":mainwindow",
+        ":mainwindow_ui",
         "@rules_qt//:qt_core",
         "@rules_qt//:qt_widgets",
     ],
