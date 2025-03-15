@@ -1,0 +1,19 @@
+<RCC>
+    <qresource prefix="/">
+        <file>images/australia2024.png</file>
+        <file>images/f1_background.png</file>
+        <file>images/alpine.jpg</file>
+        <file>images/haas.jpg</file>
+        <file>images/racing_bulls.jpg</file>
+        <file>images/willams.jpg</file>
+        <file>images/sauber.jpg</file>
+        <file>images/aston_martin.jpg</file>
+        <file>images/mercedes.jpg</file>
+        <file>images/red_bull.jpg</file>
+        <file>images/ferrari.jpg</file>
+        <file>images/mclaren.jpg</file>
+        <file>images/spa.jpeg</file>
+        <file>images/monza.jpeg</file>
+        <file>images/montreal.jpeg</file>
+    </qresource>
+</RCC>
