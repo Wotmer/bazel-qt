@@ -1,6 +1,5 @@
 load("@rules_qt//:qt.bzl", "qt_cc_binary", "qt_cc_library", "qt_resource_via_qrc")
 
-# Правило для сборки ресурсов (resourses.qrc)
 qt_resource_via_qrc(
     name = "resources",
     files = [
@@ -37,50 +36,46 @@ qt_resource_via_qrc(
         "images/mclaren_l.jpg",
         "images/mercedes_l.jpg"
     ],
-    qrc_file = ["resourses.qrc"],
+    qrc_file = "resourses.qrc",
 )
 
-# Библиотека для mainwindow
 qt_cc_library(
     name = "mainwindow",
     srcs = ["mainwindow.cpp"],
     hdrs = ["mainwindow.h"],
     deps = [
-        ":resources",  # Зависимость от ресурсов
+        ":resources",
         "@rules_qt//:qt_core",
         "@rules_qt//:qt_gui",
         "@rules_qt//:qt_widgets",
     ],
 )
 
-# Библиотека для merchwindow
 qt_cc_library(
     name = "merchwindow",
     srcs = ["merchwindow.cpp"],
     hdrs = ["merchwindow.h"],
     deps = [
-        ":resources",  # Зависимость от ресурсов
+        ":resources",
         "@rules_qt//:qt_core",
         "@rules_qt//:qt_gui",
         "@rules_qt//:qt_widgets",
     ],
 )
 
-# Библиотека для ticketwindow
 qt_cc_library(
     name = "ticketwindow",
     srcs = ["ticketwindow.cpp"],
     hdrs = ["ticketwindow.h"],
     deps = [
-        ":resources",  # Зависимость от ресурсов
+        ":resources",
         "@rules_qt//:qt_core",
         "@rules_qt//:qt_gui",
         "@rules_qt//:qt_widgets",
     ],
 )
 
-# Основной бинарник
-cc_binary(
+qt_cc_binary(
     name = "main",
     srcs = ["main.cpp"],
     deps = [
