@@ -17,6 +17,7 @@ MerchWindow::MerchWindow(const QString &driverName, QWidget *parent)
     // Поле для выбора даты
     dateEdit = new QDateEdit(this);
     dateEdit->setDate(QDate::currentDate());
+    dateEdit->setMinimumDate(QDate::currentDate());
     mainLayout->addWidget(new QLabel("Дата доставки:"));
     mainLayout->addWidget(dateEdit);
 
