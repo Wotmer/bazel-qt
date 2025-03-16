@@ -36,7 +36,7 @@ qt_resource_via_qrc(
         "images/mclaren_l.jpg",
         "images/mercedes_l.jpg"
     ],
-    qrc_file = "resourses.qrc",
+    qrc_file = "resources.qrc",
 )
 
 qt_cc_library(
@@ -45,6 +45,8 @@ qt_cc_library(
     hdrs = ["mainwindow.h"],
     deps = [
         ":resources",
+        ":merchwindow",
+        ":ticketwindow",
         "@rules_qt//:qt_core",
         "@rules_qt//:qt_gui",
         "@rules_qt//:qt_widgets",
