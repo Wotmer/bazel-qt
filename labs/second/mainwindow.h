@@ -22,6 +22,7 @@ class MainWindow : public QMainWindow
     ~MainWindow();
 
    private slots:
+    void handleSingleClick(QListWidgetItem *item);
     void handleDoubleClick(QListWidgetItem *item); // Обработка двойного нажатия
     void openTicketWindow(QListWidgetItem *item); // Открытие окна покупки билетов
     void openMerchWindow(QListWidgetItem *item); // Открытие окна заказа мерча
