@@ -111,13 +111,6 @@ void MainWindow::mousePressEvent(QMouseEvent *event) {
     }
     QMainWindow::mousePressEvent(event);
 }
-void MainWindow::onShowHintClicked() {
-    if (selectedItem && ticketHints.contains(selectedItem)) {
-        QMessageBox::information(this, "Подсказка", ticketHints[selectedItem]);
-    } else {
-        QMessageBox::information(this, "Подсказка", "Подсказка отсутствует.");
-    }
-}
 
 void MainWindow::onSaveProgressClicked() {
     QFile file("progress.txt");
@@ -289,6 +282,35 @@ void MainWindow::updateItemColor(QListWidgetItem* item) {
     listWidget->update();
 }
 
+void MainWindow::onShowHintClicked() {
+    if (selectedItem) {
+        if (ticketHints.contains(selectedItem)) {
+            QMessageBox::information(this, "Подсказка", ticketHints[selectedItem]);
+        } else {
+            QMessageBox msgBox(this);
+            msgBox.setWindowTitle("Подсказка отсутствует");
+            msgBox.setText("Подсказка для этого билета отсутствует. Хотите добавить подсказку?");
+            QPushButton *addButton = msgBox.addButton("Добавить подсказку", QMessageBox::ActionRole);
+            QPushButton *cancelButton = msgBox.addButton("Отмена", QMessageBox::RejectRole);
+
+            msgBox.exec();
+
+            if (msgBox.clickedButton() == addButton) {
+                bool ok;
+                QString hint = QInputDialog::getText(this, "Добавить подсказку", "Введите подсказку:", QLineEdit::Normal, "", &ok);
+
+                if (ok && !hint.isEmpty()) {
+                    // Сохраняем подсказку
+                    ticketHints[selectedItem] = hint;
+                    QMessageBox::information(this, "Подсказка", "Подсказка добавлена.");
+                }
+            }
+        }
+    } else {
+        QMessageBox::information(this, "Подсказка", "Выберите билет для добавления подсказки.");
+    }
+}
+
 void MainWindow::onNextQuestionClicked() {
     QList<QListWidgetItem*> defaultOrYellowTickets;
 
@@ -308,6 +330,7 @@ void MainWindow::onNextQuestionClicked() {
 
         listWidget->setCurrentItem(selectedItem);
         nameLabel->setText("Имя билета: " + selectedItem->text());
+        nameEdit->setText(selectedItem->text());
         numberLabel->setText("Номер билета: " + QString::number(ticketNumbers[selectedItem]));
         comboBox->setCurrentIndex(ticketStatuses[selectedItem]);
     }
