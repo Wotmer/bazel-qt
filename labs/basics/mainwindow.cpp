@@ -194,6 +194,8 @@ void MainWindow::onNameEditEnterPressed() {
         if (!newName.isEmpty()) {
             selectedItem->setText(newName);
             nameLabel->setText("Имя билета: " + newName);
+            listWidget->setCurrentItem(selectedItem);
+            listWidget->setFocus();
         }
     }
 }
@@ -216,6 +218,8 @@ void MainWindow::onStatusChanged(int index) {
         }
 
         updateProgressBars();
+        listWidget->setCurrentItem(selectedItem);
+        listWidget->setFocus();
     }
 }
 
@@ -291,7 +295,7 @@ void MainWindow::onShowHintClicked() {
             msgBox.setWindowTitle("Подсказка отсутствует");
             msgBox.setText("Подсказка для этого билета отсутствует. Хотите добавить подсказку?");
             QPushButton *addButton = msgBox.addButton("Добавить подсказку", QMessageBox::ActionRole);
-            QPushButton *cancelButton = msgBox.addButton("Отмена", QMessageBox::RejectRole);
+            //QPushButton *cancelButton = msgBox.addButton("Отмена", QMessageBox::RejectRole);
 
             msgBox.exec();
 
@@ -306,6 +310,8 @@ void MainWindow::onShowHintClicked() {
                 }
             }
         }
+        listWidget->setCurrentItem(selectedItem);
+        listWidget->setFocus();
     } else {
         QMessageBox::information(this, "Подсказка", "Выберите билет для добавления подсказки.");
     }
@@ -333,6 +339,7 @@ void MainWindow::onNextQuestionClicked() {
         nameEdit->setText(selectedItem->text());
         numberLabel->setText("Номер билета: " + QString::number(ticketNumbers[selectedItem]));
         comboBox->setCurrentIndex(ticketStatuses[selectedItem]);
+        listWidget->setFocus();
     }
 }
 
@@ -341,8 +348,16 @@ void MainWindow::onPreviousQuestionClicked() {
         QListWidgetItem* prevItem = historyStack.pop();
         if (prevItem) {
             listWidget->setCurrentItem(prevItem);
-            onListItemClicked(prevItem);
+            if (prevItem && prevItem != selectedItem) {
+                selectedItem = prevItem;
+                nameLabel->setText("Имя билета: " + prevItem->text());
+                nameEdit->setText(prevItem->text());
+                int ticketNumber = ticketNumbers[prevItem];
+                numberLabel->setText("Номер билета: " + QString::number(ticketNumber));
+                comboBox->setCurrentIndex(ticketStatuses[prevItem]);
+            }
         }
+        listWidget->setFocus();
     }
 }
 
