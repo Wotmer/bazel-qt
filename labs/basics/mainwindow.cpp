@@ -295,11 +295,7 @@ void MainWindow::onShowHintClicked() {
             msgBox.setWindowTitle("Подсказка отсутствует");
             msgBox.setText("Подсказка для этого билета отсутствует. Хотите добавить подсказку?");
             QPushButton *addButton = msgBox.addButton("Добавить подсказку", QMessageBox::ActionRole);
-<<<<<<< HEAD
             //QPushButton *cancelButton = msgBox.addButton("Отмена", QMessageBox::RejectRole);
-=======
-            QPushButton *cancelButton = msgBox.addButton("Отмена", QMessageBox::RejectRole);
->>>>>>> refs/remotes/origin/main
 
             msgBox.exec();
 
@@ -308,17 +304,13 @@ void MainWindow::onShowHintClicked() {
                 QString hint = QInputDialog::getText(this, "Добавить подсказку", "Введите подсказку:", QLineEdit::Normal, "", &ok);
 
                 if (ok && !hint.isEmpty()) {
-                    // Сохраняем подсказку
                     ticketHints[selectedItem] = hint;
                     QMessageBox::information(this, "Подсказка", "Подсказка добавлена.");
                 }
             }
         }
-<<<<<<< HEAD
         listWidget->setCurrentItem(selectedItem);
         listWidget->setFocus();
-=======
->>>>>>> refs/remotes/origin/main
     } else {
         QMessageBox::information(this, "Подсказка", "Выберите билет для добавления подсказки.");
     }
