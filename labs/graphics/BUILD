@@ -1,24 +1,24 @@
-load("@rules_qt//:qt.bzl", "qt_cc_binary", "qt_cc_library")
+load("@rules_qt//qt:defs.bzl", "qt_cc_binary", "qt_qrc")
 
-qt_cc_library(
-    name = "mainwindow",
-    srcs = [
-        "mainwindow.cpp",
-    ],
-    hdrs = ["mainwindow.h"],
-    deps = [
-        "@rules_qt//:qt_core",
-        "@rules_qt//:qt_gui",
-        "@rules_qt//:qt_widgets",
-    ],
+filegroup(
+    name = "sources",
+    srcs = glob(["src/*.cpp"]),
+)
+
+filegroup(
+    name = "headers",
+    srcs = glob(["include/*.h"]),
 )
 
 qt_cc_binary(
     name = "raycaster",
-    srcs = ["main.cpp"],
+    srcs = [":sources"],
+    hdrs = [":headers"],
+    moc_hdrs = ["include/raycaster_widget.h"],
     deps = [
-        ":mainwindow",
-        "@rules_qt//:qt_core",
-        "@rules_qt//:qt_widgets",
+        ":resources",
+        "@qt//:QtCore",
+        "@qt//:QtGui",
+        "@qt//:QtWidgets",
     ],
 )
