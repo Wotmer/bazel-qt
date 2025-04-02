@@ -18,10 +18,12 @@ class Controller {
     [[nodiscard]] std::vector<Ray> CastRays() const;
     void IntersectRays(std::vector<Ray>* rays) const;
     [[nodiscard]] Polygon CreateLightArea() const;
+    void RemoveAdjacentRays(std::vector<Ray>* rays) const;
 
    private:
     std::vector<Polygon> polygons_;
     QPointF light_source_;
     static double Distance(QPointF a, QPointF b);
+    static double AngleBetween(const QPointF& center, const QPointF& point);
 };
 #endif  // CONTROLLER_H

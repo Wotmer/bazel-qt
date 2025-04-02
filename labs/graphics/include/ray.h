@@ -14,6 +14,9 @@ class Ray {
     void SetEnd(const QPointF& end);
     void SetAngle(double angle);
     [[nodiscard]] Ray Rotate(double angle) const;
+    bool operator==(const Ray& other) const {
+        return begin_ == other.begin_ && end_ == other.end_;
+    }
 
    private:
     QPointF begin_;

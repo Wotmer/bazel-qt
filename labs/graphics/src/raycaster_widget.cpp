@@ -16,12 +16,11 @@ RaycasterWidget::RaycasterWidget(QWidget* parent) : QMainWindow(parent) {  // NO
     controlPanel->setFixedHeight(65);
     CreateModeSelector(controlPanel);
 
-    drawingArea_ = new QWidget();  // NOLINT
-    drawingArea_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    drawingArea_->setStyleSheet("background-color: white;");
+    drawing_area_ = new QWidget();  // NOLINT
+    drawing_area_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
     mainLayout->addWidget(controlPanel);
-    mainLayout->addWidget(drawingArea_, 1);
+    mainLayout->addWidget(drawing_area_, 1);
 
     UpdateBorderPolygon();
 }
@@ -66,10 +65,10 @@ void RaycasterWidget::CreateModeSelector(QWidget* parent) {
 }
 
 void RaycasterWidget::UpdateBorderPolygon() {
-    QRect drawingRect = drawingArea_->geometry(); // NOLINT
+    const QSize size = drawing_area_->size();
     const std::vector border = {
-      QPointF(0, 0), QPointF(drawingRect.width(), 0),
-      QPointF(drawingRect.width(), drawingRect.height()), QPointF(0, drawingRect.height())};
+      QPointF(0, 0), QPointF(size.width(), 0),
+      QPointF(size.width(), size.height()), QPointF(0, size.height())};
 
     if (controller_.GetPolygons().empty()) {
         controller_.AddPolygon(Polygon(border));
@@ -82,45 +81,71 @@ void RaycasterWidget::paintEvent(QPaintEvent* /*event*/) {
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
 
-    const QRect drawing_rect = drawingArea_->geometry();
+    const QRect drawing_rect = drawing_area_->geometry();
+    painter.fillRect(drawing_rect, Qt::white);
     painter.save();
     painter.translate(drawing_rect.topLeft());
 
     DrawPolygons(painter);
-    DrawLightSources(painter);
+
     if (mode_ == "light") {
         DrawLightArea(painter);
     }
     painter.restore();
 
-    painter.setPen(QPen(QColor(150, 150, 150), 2));
+    if (mode_ == "light") {
+        DrawLightSource(painter);
+    }
+
+    painter.setPen(QPen(Qt::gray, 2));
     painter.drawRect(drawing_rect);
-    painter.setPen(QPen(Qt::white, 1));
-    painter.drawRect(drawing_rect.adjusted(1, 1, -1, -1));
+}
+
+void RaycasterWidget::DrawLightSource(QPainter& painter) const {
+    painter.save();
+
+    const QRect drawing_rect = drawing_area_->geometry();
+    const QPointF light_pos_rel = controller_.GetLightSource();
+    const QPointF light_pos_abs = drawing_rect.topLeft() + light_pos_rel;
+
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(Qt::red);
+    painter.drawEllipse(light_pos_abs, 2, 2);
+
+    painter.restore();
 }
 
 void RaycasterWidget::mousePressEvent(QMouseEvent* event) {
+    const QRect drawing_rect = drawing_area_->geometry();
+    if (!drawing_rect.contains(event->pos())) {
+        return;
+    }
+    const QPointF adjusted_pos = event->pos() - drawing_rect.topLeft();
     if (mode_ == "polygons") {
         if (event->button() == Qt::LeftButton) {
             if (!creating_polygon_) {
-                controller_.AddPolygon(Polygon({event->pos()}));
+                controller_.AddPolygon(Polygon({adjusted_pos}));
                 creating_polygon_ = true;
             } else {
-                controller_.AddVertexToLastPolygon({event->pos()});
+                controller_.AddVertexToLastPolygon(adjusted_pos);
             }
-        } else if (event->button() == Qt::RightButton) {
+        } else if (event->button() == Qt::RightButton && creating_polygon_) {
             creating_polygon_ = false;
         }
     } else if (mode_ == "light") {
-        controller_.SetLightSource(event->pos());
+        controller_.SetLightSource(adjusted_pos);
     }
     update();
 }
 
 void RaycasterWidget::mouseMoveEvent(QMouseEvent* event) {
     if (mode_ == "light") {
-        controller_.SetLightSource(event->pos());
-        update();
+        const QRect drawing_rect = drawing_area_->geometry();
+        if (drawing_rect.contains(event->pos())) {
+            const QPointF adjusted_pos = event->pos() - drawing_rect.topLeft();
+            controller_.SetLightSource(adjusted_pos);
+            update();
+        }
     } else if (mode_ == "polygons" && creating_polygon_) {
         controller_.UpdateLastPolygon(event->pos());
         update();
@@ -152,12 +177,58 @@ void RaycasterWidget::keyPressEvent(QKeyEvent* event) {
     }
 }
 
-void RaycasterWidget::DrawLightArea(QPainter& painter) {
+void RaycasterWidget::DrawLightArea(QPainter& painter) const {
+    if (mode_ != "light") {
+        return;
+    }
+
+    const Polygon light_area = controller_.CreateLightArea();
+    const auto& vertices = light_area.GetVertices();
+
+    if (vertices.size() > 2) {
+        QPainterPath path;
+        path.moveTo(vertices[0]);
+        for (size_t i = 1; i < vertices.size(); ++i) {
+            path.lineTo(vertices[i]);
+        }
+        path.closeSubpath();
+
+        painter.setPen(QPen(Qt::black, 1));
+        painter.setBrush(QColor(240, 240, 240, 150));
+        painter.drawPath(path);
+    }
 }
 
-void RaycasterWidget::DrawPolygons(QPainter& painter) {
-}
+void RaycasterWidget::DrawPolygons(QPainter& painter) const {
+    QBrush polygonBrush(Qt::white);   // NOLINT
+    QPen polygonPen(Qt::black, 1.5);  // NOLINT
+    painter.setBrush(polygonBrush);
+    painter.setPen(polygonPen);
 
-void RaycasterWidget::DrawLightSources(QPainter& painter){
+    const auto& polygons = controller_.GetPolygons();
+    for (size_t i = 0; i < polygons.size(); ++i) {
+        const auto& vertices = polygons[i].GetVertices();
+        if (vertices.size() < 2) {
+            continue;
+        }
+        QPolygonF poly;
+        for (const auto& v : vertices) {
+            poly << v;
+        }
 
+        if (i == 0) {
+            painter.setBrush(Qt::NoBrush);
+            painter.setPen(QPen(Qt::gray, 1, Qt::DashLine));
+        } else {
+            painter.setBrush(polygonBrush);
+            painter.setPen(polygonPen);
+        }
+
+        painter.drawPolygon(poly);
+
+        if (creating_polygon_ && i == polygons.size() - 1) {
+            painter.setBrush(QBrush(QColor(200, 230, 255)));
+            painter.drawPolygon(poly);
+        }
+    }
 }
