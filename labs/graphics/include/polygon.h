@@ -1,7 +1,7 @@
 #ifndef POLYGON_H
 #define POLYGON_H
 
-#include "../include/ray.h"
+#include "ray.h"
 
 #include <QPointF>
 #include <optional>

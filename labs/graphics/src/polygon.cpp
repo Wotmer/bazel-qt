@@ -73,35 +73,3 @@ std::optional<QPointF> Polygon::IntersectRay(const Ray& ray) const {
     }
     return found ? std::optional(closest_intersection) : std::nullopt;
 }
-
-// std::optional<QPointF> Polygon::IntersectRay(const Ray& ray) const {
-//     std::optional<QPointF> closestIntersection;
-//     double minDistance = std::numeric_limits<double>::max();
-//
-//     for (size_t i = 0; i < vertices.size(); ++i) {
-//         QPointF p1 = vertices[i];
-//         QPointF p2 = vertices[(i + 1) % vertices.size()];
-//
-//         double x1 = p1.x(), y1 = p1.y();
-//         double x2 = p2.x(), y2 = p2.y();
-//         double x3 = ray.getBegin().x(), y3 = ray.getBegin().y();
-//         double x4 = ray.getEnd().x(), y4 = ray.getEnd().y();
-//
-//         double denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
-//         if (denom == 0) continue;
-//
-//         double t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / denom;
-//         double u = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / denom;
-//
-//         if (t >= 0 && t <= 1 && u >= 0) {
-//             QPointF intersection(x1 + t * (x2 - x1), y1 + t * (y2 - y1));
-//             double distance = std::hypot(intersection.x() - x3, intersection.y() - y3);
-//
-//             if (distance < minDistance) {
-//                 minDistance = distance;
-//                 closestIntersection = intersection;
-//             }
-//         }
-//     }
-//     return closestIntersection;
-// }
