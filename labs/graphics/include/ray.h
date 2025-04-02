@@ -5,18 +5,19 @@
 #include <cmath>
 
 class Ray {
-    public:
+   public:
     Ray(const QPointF& begin, const QPointF& end, double angle);
-    QPointF begin() const;
-    QPointF end() const;
-    double Angle() const;
+    [[nodiscard]] QPointF GetBegin() const;
+    [[nodiscard]] QPointF GetEnd() const;
+    [[nodiscard]] double GetAngle() const;
     void SetBegin(const QPointF& begin);
     void SetEnd(const QPointF& end);
     void SetAngle(double angle);
-    Ray Rotate(double angle) const;
-    private:
+    [[nodiscard]] Ray Rotate(double angle) const;
+
+   private:
     QPointF begin_;
     QPointF end_;
     double angle_;
 };
-#endif //RAY_H
+#endif  // RAY_H
