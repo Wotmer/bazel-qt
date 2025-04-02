@@ -8,15 +8,20 @@
 
 class Controller {
    public:
-    const std::vector<Polygon>& GetPolygons() const;
+    [[nodiscard]] std::vector<Polygon> GetPolygons() const;
     void AddPolygon(const Polygon& a);
     void AddVertexToLastPolygon(const QPointF& new_vertex);
     void UpdateLastPolygon(const QPointF& new_vertex);
-    QPointF GetLightSource() const;
+    [[nodiscard]] QPointF GetLightSource() const;
     void SetLightSource(const QPointF& new_light_source);
+
+    [[nodiscard]] std::vector<Ray> CastRays() const;
+    void IntersectRays(std::vector<Ray>* rays) const;
+    [[nodiscard]] Polygon CreateLightArea() const;
 
    private:
     std::vector<Polygon> polygons_;
     QPointF light_source_;
+    static double Distance(QPointF a, QPointF b);
 };
 #endif  // CONTROLLER_H

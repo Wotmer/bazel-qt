@@ -10,7 +10,7 @@
 class Polygon {
    public:
     explicit Polygon(const std::vector<QPointF>& vertices);
-    [[nodiscard]] const std::vector<QPointF>& GetVertexes() const;
+    [[nodiscard]] const std::vector<QPointF>& GetVerteсes() const;
     void AddVertex(const QPointF& vertex);
     void UpdateLastVertex(const QPointF& new_vertex);
     [[nodiscard]] std::optional<QPointF> IntersectRay(const Ray& ray) const;

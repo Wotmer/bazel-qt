@@ -6,7 +6,7 @@
 Polygon::Polygon(const std::vector<QPointF>& vertices) : vertices_(vertices) {
 }
 
-const std::vector<QPointF>& Polygon::GetVertexes() const {
+const std::vector<QPointF>& Polygon::GetVerteсes() const {
     return vertices_;
 }
 
@@ -19,8 +19,9 @@ void Polygon::UpdateLastVertex(const QPointF& new_vertex) {
         vertices_.back() = new_vertex;
     }
 }
+
 std::optional<QPointF> Polygon::LineIntersection(
-        const QPointF& a1, const QPointF& a2, const QPointF& b1, const QPointF& b2) {
+    const QPointF& a1, const QPointF& a2, const QPointF& b1, const QPointF& b2) {
     const double denom =
         ((a1.x() - a2.x()) * (b1.y() - b2.y())) - ((a1.y() - a2.y()) * (b1.x() - b2.x()));
 
@@ -63,7 +64,7 @@ std::optional<QPointF> Polygon::IntersectRay(const Ray& ray) const {
         auto intersection = LineIntersection(ray_begin, ray_end, p1, p2);
 
         if (intersection) {
-            double const dist = Distance(ray_begin, *intersection);
+            const double dist = Distance(ray_begin, *intersection);
             if (dist < min) {
                 min = dist;
                 closest_intersection = *intersection;

@@ -1,6 +1,9 @@
 #include "../include/controller.h"
 
-const std::vector<Polygon>& Controller::GetPolygons() const {
+#include <algorithm>
+#include <cmath>
+
+std::vector<Polygon> Controller::GetPolygons() const {
     return polygons_;
 }
 
@@ -24,4 +27,25 @@ QPointF Controller::GetLightSource() const {
 }
 void Controller::SetLightSource(const QPointF& new_light_source) {
     light_source_ = new_light_source;
+}
+
+std::vector<Ray> Controller::CastRays() const {
+    std::vector<Ray> rays;
+
+    return rays;
+}
+
+void Controller::IntersectRays(std::vector<Ray>* rays) const {
+
+}
+
+Polygon Controller::CreateLightArea() const {
+
+    return Polygon({});
+}
+
+double Controller::Distance(QPointF a, QPointF b) {
+    double const dx = a.x() - b.x();
+    double const dy = a.y() - b.y();
+    return std::hypot(dx, dy);
 }

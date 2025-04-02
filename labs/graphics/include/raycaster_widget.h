@@ -15,17 +15,16 @@ class RaycasterWidget : public QMainWindow {
 
    public:
     explicit RaycasterWidget(QWidget* parent = nullptr);
-
-   public slots:
     void OnModeChanged(int mode);
 
-    protected:
+   protected:
     void mousePressEvent(QMouseEvent* event) override;
     void mouseMoveEvent(QMouseEvent* event) override;
     void paintEvent(QPaintEvent* event) override;
     void keyPressEvent(QKeyEvent* event) override;
 
-    private:
+   private:
+    QWidget* drawingArea_;
     Controller controller_;
     QString mode_ = "light";
     bool creating_polygon_ = false;
@@ -34,9 +33,11 @@ class RaycasterWidget : public QMainWindow {
     QRadioButton* light_mode_radio_;
     QRadioButton* polygons_mode_radio_;
 
-    void drawLightArea(QPainter& painter);
-    void drawPolygons(QPainter& painter);
-    void drawLightSources(QPainter& painter);
-    void createModeSelector();
+    void DrawLightArea(QPainter& painter);
+    void DrawPolygons(QPainter& painter);
+    void DrawLightSources(QPainter& painter);
+    void CreateModeSelector(QWidget* parent);
+    void UpdateBorderPolygon();
+    void updateBorderPolygon();
 };
 #endif  // RAYCASTER_WIDGET_H
