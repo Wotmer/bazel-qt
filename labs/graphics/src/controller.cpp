@@ -3,7 +3,11 @@
 #include <algorithm>
 #include <cmath>
 
-std::vector<Polygon> Controller::GetPolygons() const {
+std::vector<Polygon>& Controller::GetPolygons() {
+    return polygons_;
+}
+
+const std::vector<Polygon>& Controller::GetPolygons() const {
     return polygons_;
 }
 

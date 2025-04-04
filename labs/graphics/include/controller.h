@@ -8,7 +8,8 @@
 
 class Controller {
    public:
-    [[nodiscard]] std::vector<Polygon> GetPolygons() const;
+    [[nodiscard]] std::vector<Polygon>& GetPolygons();
+    [[nodiscard]] const std::vector<Polygon>& GetPolygons() const;
     void AddPolygon(const Polygon& a);
     void AddVertexToLastPolygon(const QPointF& new_vertex);
     void UpdateLastPolygon(const QPointF& new_vertex);
