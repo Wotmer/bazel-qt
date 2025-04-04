@@ -7,7 +7,6 @@
 RaycasterWidget::RaycasterWidget(QWidget* parent) : QMainWindow(parent) {  // NOLINT
     QWidget* centralWidget = new QWidget(this);                            // NOLINT
     setCentralWidget(centralWidget);
-
     QVBoxLayout* mainLayout = new QVBoxLayout(centralWidget);              // NOLINT
     mainLayout->setContentsMargins(0, 0, 0, 0);
     mainLayout->setSpacing(0);
@@ -21,6 +20,8 @@ RaycasterWidget::RaycasterWidget(QWidget* parent) : QMainWindow(parent) {  // NO
 
     mainLayout->addWidget(controlPanel);
     mainLayout->addWidget(drawing_area_, 1);
+    qDebug() << this->size() << "Размер окна";
+    qDebug() << drawing_area_->size() << "Размер поля";
 
     UpdateBorderPolygon();
 }
@@ -65,16 +66,31 @@ void RaycasterWidget::CreateModeSelector(QWidget* parent) {
 }
 
 void RaycasterWidget::UpdateBorderPolygon() {
-    const QSize size = drawing_area_->size();
+    qDebug() << drawing_area_->size() << "UpdateBorder";
+    constexpr int margin = 1;
     const std::vector border = {
-      QPointF(0, 0), QPointF(size.width(), 0),
-      QPointF(size.width(), size.height()), QPointF(0, size.height())};
+      QPointF(margin, margin), QPointF(this->width() - margin, margin),
+      QPointF(this->width() - margin, this->height() - 65 - margin),
+      QPointF(margin, this->height() - 65 - margin)};
 
+    qDebug() << border[2] << "Размер border";
+    qDebug() << this->size() << "Размер this";
     if (controller_.GetPolygons().empty()) {
         controller_.AddPolygon(Polygon(border));
     } else {
         controller_.GetPolygons()[0] = Polygon(border);
+        controller_.AddPolygon(Polygon(border));
+        qDebug() << "Замена границы";
     }
+    qDebug() << controller_.GetPolygons().size() << "Вектор";
+    qDebug() << controller_.GetPolygons()[0].GetVertices()[2] << "Вершина 0";
+}
+
+void RaycasterWidget::resizeEvent(QResizeEvent* event) {
+    QMainWindow::resizeEvent(event);
+    UpdateBorderPolygon();
+    qDebug() << "11111111111111";
+    update();
 }
 
 void RaycasterWidget::paintEvent(QPaintEvent* /*event*/) {

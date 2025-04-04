@@ -22,6 +22,7 @@ class RaycasterWidget : public QMainWindow {
     void mouseMoveEvent(QMouseEvent* event) override;
     void paintEvent(QPaintEvent* event) override;
     void keyPressEvent(QKeyEvent* event) override;
+    void resizeEvent(QResizeEvent* event) override;
 
    private:
     QWidget* drawing_area_;
