@@ -43,8 +43,8 @@ std::vector<Ray> Controller::CastRays() const {
             constexpr double kAngleIncrement = 0.0001;
             const double angle = AngleBetween(light_source_, vertex);
             rays.emplace_back(light_source_, vertex, angle);
-            rays.emplace_back(light_source_, vertex, angle - kAngleIncrement);
-            rays.emplace_back(light_source_, vertex, angle + kAngleIncrement);
+            rays.emplace_back(rays.back().Rotate(- kAngleIncrement));
+            rays.emplace_back(rays.back().Rotate(2 * kAngleIncrement));
         }
     }
 
@@ -53,9 +53,8 @@ std::vector<Ray> Controller::CastRays() const {
 
 void Controller::IntersectRays(std::vector<Ray>* rays) const {
     for (auto& ray : *rays) {
-        const QPointF ray_end = ray.GetEnd();
-        double min_dist = Distance(ray.GetBegin(), ray_end);
-        QPointF closest_intersection = ray_end;
+        double min_dist = Distance(ray.GetBegin(), ray.GetEnd());
+        QPointF closest_intersection = ray.GetEnd();
 
         for (const auto& polygon : polygons_) {
             auto intersection = polygon.IntersectRay(ray);
@@ -73,7 +72,13 @@ void Controller::IntersectRays(std::vector<Ray>* rays) const {
 }
 
 double Controller::AngleBetween(const QPointF& center, const QPointF& point) {
-    return atan2(point.y() - center.y(), point.x() - center.x());
+    auto normalizeAngle = [](double angle) {
+        if (angle < 0) {
+            angle += 2 * M_PI;
+        }
+        return angle;
+    };
+    return normalizeAngle(atan2(center.y() - point.y(), point.x() - center.x()));
 }
 
 void Controller::RemoveAdjacentRays(std::vector<Ray>* rays) const {
@@ -81,15 +86,20 @@ void Controller::RemoveAdjacentRays(std::vector<Ray>* rays) const {
         return;
     }
 
-    std::ranges::sort(*rays, [this](const Ray& a, const Ray& b) {
-        return AngleBetween(light_source_, a.GetEnd()) < AngleBetween(light_source_, b.GetEnd());
-    });
+    std::ranges::sort(
+        *rays, [this](const Ray& a, const Ray& b) { return a.GetAngle() < b.GetAngle(); });
 
-    const auto new_end = std::ranges::unique(*rays, [this](const Ray& a, const Ray& b) {
-                             return Distance(a.GetEnd(), b.GetEnd()) < 5.0;  // Порог = 5 пикселей
-                         }).begin();
+    std::vector<Ray> new_rays;
+    new_rays.push_back(rays->front());
 
-    rays->erase(new_end, rays->end());
+    for (size_t i = 1; i < rays->size(); ++i) {
+        const Ray& prev = new_rays.back();
+        const Ray& current = (*rays)[i];
+        if (std::abs(Distance(current.GetEnd(), prev.GetEnd()) > 1.0)) {
+            new_rays.push_back(current);
+        }
+    }
+    *rays = std::move(new_rays);
 }
 
 Polygon Controller::CreateLightArea() const {
@@ -97,13 +107,17 @@ Polygon Controller::CreateLightArea() const {
     IntersectRays(&rays);
     RemoveAdjacentRays(&rays);
 
-    std::vector<QPointF> vertices;
-    vertices.push_back(light_source_);
+    if (rays.empty()) {
+        return Polygon({light_source_});
+    }
 
-    std::sort(rays.begin(), rays.end(), [this](const Ray& a, const Ray& b) {
-        return atan2(a.GetEnd().y() - light_source_.y(), a.GetEnd().x() - light_source_.x()) <
-               atan2(b.GetEnd().y() - light_source_.y(), b.GetEnd().x() - light_source_.x());
+    std::ranges::sort(rays, [this](const Ray& a, const Ray& b) {
+        const double angle_a = AngleBetween(light_source_, a.GetEnd());
+        const double angle_b = AngleBetween(light_source_, b.GetEnd());
+        return angle_a < angle_b;
     });
+
+    std::vector<QPointF> vertices;
 
     for (const auto& ray : rays) {
         vertices.push_back(ray.GetEnd());
@@ -112,12 +126,11 @@ Polygon Controller::CreateLightArea() const {
     if (!rays.empty()) {
         vertices.push_back(rays.front().GetEnd());
     }
-
     return Polygon(vertices);
 }
 
 double Controller::Distance(const QPointF a, const QPointF b) {
     const double dx = a.x() - b.x();
-    const double dy = a.y() - b.y();
+    const double dy = b.y() - a.y();
     return std::hypot(dx, dy);
 }

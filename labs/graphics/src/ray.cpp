@@ -32,6 +32,7 @@ Ray Ray::Rotate(const double angle) const {
     const double angle2 = angle_ + angle;
     const double dx = cosl(angle2);
     const double dy = sinl(angle2);
-    const QPointF end = {begin_.x() + dx, begin_.y() + dy};
+    const double h = std::hypot(end_.x() - begin_.x(), end_.y() - begin_.y());
+    const QPointF end = {begin_.x() + h * dx, begin_.y() - h * dy};
     return {begin_, end, angle2};
 }

@@ -20,8 +20,8 @@ RaycasterWidget::RaycasterWidget(QWidget* parent) : QMainWindow(parent) {  // NO
 
     mainLayout->addWidget(controlPanel);
     mainLayout->addWidget(drawing_area_, 1);
-    //qDebug() << this->size() << "Размер окна";
-    //qDebug() << drawing_area_->size() << "Размер поля";
+    // qDebug() << this->size() << "Размер окна";
+    // qDebug() << drawing_area_->size() << "Размер поля";
 
     UpdateBorderPolygon();
 }
@@ -66,28 +66,27 @@ void RaycasterWidget::CreateModeSelector(QWidget* parent) {
 }
 
 void RaycasterWidget::UpdateBorderPolygon() {
-    //qDebug() << drawing_area_->size() << "UpdateBorder";
+    // qDebug() << drawing_area_->size() << "UpdateBorder";
     const std::vector border = {
-      QPointF(0, 0), QPointF(this->width(), 0),
-      QPointF(this->width(), this->height() - 65),
+      QPointF(0, 0), QPointF(this->width(), 0), QPointF(this->width(), this->height() - 65),
       QPointF(0, this->height() - 65)};
 
-    //qDebug() << border[2] << "Размер border";
-    //qDebug() << this->size() << "Размер this";
+    // qDebug() << border[2] << "Размер border";
+    // qDebug() << this->size() << "Размер this";
     if (controller_.GetPolygons().empty()) {
         controller_.AddPolygon(Polygon(border));
     } else {
         controller_.GetPolygons()[0] = Polygon(border);
-        //qDebug() << "Замена границы";
+        // qDebug() << "Замена границы";
     }
-    //qDebug() << controller_.GetPolygons().size() << "Вектор";
-    //qDebug() << controller_.GetPolygons()[0].GetVertices()[2] << "Вершина 0";
+    // qDebug() << controller_.GetPolygons().size() << "Вектор";
+    // qDebug() << controller_.GetPolygons()[0].GetVertices()[2] << "Вершина 0";
 }
 
 void RaycasterWidget::resizeEvent(QResizeEvent* event) {
     QMainWindow::resizeEvent(event);
     UpdateBorderPolygon();
-    //qDebug() << "11111111111111";
+    // qDebug() << "11111111111111";
     update();
 }
 
@@ -144,6 +143,9 @@ void RaycasterWidget::mousePressEvent(QMouseEvent* event) {
                 controller_.AddVertexToLastPolygon(adjusted_pos);
             }
         } else if (event->button() == Qt::RightButton && creating_polygon_) {
+            if (controller_.GetPolygons().back().GetVertices().size() < 2) {
+                controller_.GetPolygons().pop_back();
+            }
             creating_polygon_ = false;
         }
     } else if (mode_ == "light") {
@@ -196,6 +198,16 @@ void RaycasterWidget::DrawLightArea(QPainter& painter) const {
         return;
     }
 
+    const auto rays = controller_.CastRays();
+
+    painter.setPen(QPen(Qt::red, 1, Qt::DotLine));
+    const QPointF light_pos_abs = controller_.GetLightSource();
+
+    for (const auto& ray : rays) {
+        const QPointF end_pos_abs = ray.GetEnd();
+        painter.drawLine(light_pos_abs, end_pos_abs);
+    }
+
     const Polygon light_area = controller_.CreateLightArea();
     const auto& vertices = light_area.GetVertices();
 
@@ -214,8 +226,8 @@ void RaycasterWidget::DrawLightArea(QPainter& painter) const {
 }
 
 void RaycasterWidget::DrawPolygons(QPainter& painter) const {
-    QBrush polygonBrush(Qt::NoBrush);   // NOLINT
-    QPen polygonPen(Qt::black, 1.5);  // NOLINT
+    QBrush polygonBrush(Qt::NoBrush);  // NOLINT
+    QPen polygonPen(Qt::black, 1.5);   // NOLINT
     painter.setBrush(polygonBrush);
     painter.setPen(polygonPen);
 

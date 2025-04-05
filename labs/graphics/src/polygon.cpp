@@ -23,7 +23,7 @@ void Polygon::UpdateLastVertex(const QPointF& new_vertex) {
 std::optional<QPointF> Polygon::LineIntersection(
     const QPointF& a1, const QPointF& a2, const QPointF& b1, const QPointF& b2) {
     const double denom =
-        ((a1.x() - a2.x()) * (b1.y() - b2.y())) - ((a1.y() - a2.y()) * (b1.x() - b2.x()));
+        (a1.x() - a2.x()) * (b1.y() - b2.y()) - (a1.y() - a2.y()) * (b1.x() - b2.x());
 
     if (denom == 0) {
         return std::nullopt;
@@ -33,11 +33,11 @@ std::optional<QPointF> Polygon::LineIntersection(
         ((a1.x() - b1.x()) * (b1.y() - b2.y()) - (a1.y() - b1.y()) * (b1.x() - b2.x())) / denom;
 
     const double u =
-        -(((a1.x() - a2.x()) * (a1.y() - b1.y())) - ((a1.y() - a2.y()) * (a1.x() - b1.x()))) /
+        -((a1.x() - a2.x()) * (a1.y() - b1.y()) - (a1.y() - a2.y()) * (a1.x() - b1.x())) /
         denom;
 
-    if (t >= 0 && t <= 1 && u >= 0 && u <= 1) {
-        return QPointF(a1.x() + (t * (a2.x() - a1.x())), a1.y() + (t * (a2.y() - a1.y())));
+    if (u >= 0 && u <= 1 && t >= 0 && t <= 1) {
+        return QPointF(a1.x() + t * (a2.x() - a1.x()), a1.y() + t * (a2.y() - a1.y()));
     }
 
     return std::nullopt;
