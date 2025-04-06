@@ -95,7 +95,7 @@ void RaycasterWidget::paintEvent(QPaintEvent* /*event*/) {
     painter.setRenderHint(QPainter::Antialiasing);
 
     const QRect drawing_rect = drawing_area_->geometry();
-    painter.fillRect(drawing_rect, Qt::white);
+    painter.fillRect(drawing_rect, Qt::black);
     painter.save();
     painter.translate(drawing_rect.topLeft());
 
@@ -110,7 +110,7 @@ void RaycasterWidget::paintEvent(QPaintEvent* /*event*/) {
         DrawLightSource(painter);
     }
 
-    painter.setPen(QPen(Qt::gray, 2));
+    painter.setPen(QPen(Qt::black, 2));
     painter.drawRect(drawing_rect);
 }
 
@@ -118,13 +118,15 @@ void RaycasterWidget::DrawLightSource(QPainter& painter) const {
     painter.save();
 
     const QRect drawing_rect = drawing_area_->geometry();
-    const QPointF light_pos_rel = controller_.GetLightSource();
+    std::vector<QPointF> lights = GetLights();
+    for (const QPointF light : lights) {
+    const QPointF light_pos_rel = light;//controller_.GetLightSource();
     const QPointF light_pos_abs = drawing_rect.topLeft() + light_pos_rel;
 
     painter.setPen(Qt::NoPen);
-    painter.setBrush(Qt::red);
+    painter.setBrush(QColor(255, 150, 150));
     painter.drawEllipse(light_pos_abs, 2, 2);
-
+    }
     painter.restore();
 }
 
@@ -149,6 +151,12 @@ void RaycasterWidget::mousePressEvent(QMouseEvent* event) {
             creating_polygon_ = false;
         }
     } else if (mode_ == "light") {
+        if (creating_polygon_) {
+            if (controller_.GetPolygons().back().GetVertices().size() < 2) {
+                controller_.GetPolygons().pop_back();
+            }
+            creating_polygon_ = false;
+        }
         controller_.SetLightSource(adjusted_pos);
     }
     update();
@@ -193,41 +201,58 @@ void RaycasterWidget::keyPressEvent(QKeyEvent* event) {
     }
 }
 
-void RaycasterWidget::DrawLightArea(QPainter& painter) const {
+std::vector<QPointF> RaycasterWidget::GetLights() const {
+    std::vector<QPointF> lights;
+    lights.push_back(controller_.GetLightSource());
+    constexpr int kCount = 6;
+    for (int i = 0; i < kCount; ++i) {
+        constexpr int kRadius = 16;
+        const double angle = 2 * M_PI * i / kCount;
+        lights.push_back({lights[0].x() + kRadius * cos(angle), lights[0].y() + kRadius * sin(angle)});
+    }
+
+    return lights;
+}
+
+void RaycasterWidget::DrawLightArea(QPainter& painter) {
     if (mode_ != "light") {
         return;
     }
+    std::vector<QPointF> points = GetLights();
+    for (int i = 0; i < points.size(); ++i) {
+        controller_.SetLightSource(points[i]);
+        const auto rays = controller_.CastRays();
 
-    const auto rays = controller_.CastRays();
+        /*painter.setPen(QPen(Qt::red, 1, Qt::DotLine));
+        const QPointF light_pos_abs = controller_.GetLightSource();
 
-    painter.setPen(QPen(Qt::red, 1, Qt::DotLine));
-    const QPointF light_pos_abs = controller_.GetLightSource();
+        for (const auto& ray : rays) {
+            const QPointF end_pos_abs = ray.GetEnd();
+            painter.drawLine(light_pos_abs, end_pos_abs);
+        }*/
 
-    for (const auto& ray : rays) {
-        const QPointF end_pos_abs = ray.GetEnd();
-        painter.drawLine(light_pos_abs, end_pos_abs);
-    }
+        const Polygon light_area = controller_.CreateLightArea();
+        const auto& vertices = light_area.GetVertices();
 
-    const Polygon light_area = controller_.CreateLightArea();
-    const auto& vertices = light_area.GetVertices();
+        if (vertices.size() > 2) {
+            QPainterPath path;
+            path.moveTo(vertices[0]);
+            for (size_t j = 1; j < vertices.size(); ++j) {
+                path.lineTo(vertices[j]);
+            }
+            path.closeSubpath();
 
-    if (vertices.size() > 2) {
-        QPainterPath path;
-        path.moveTo(vertices[0]);
-        for (size_t i = 1; i < vertices.size(); ++i) {
-            path.lineTo(vertices[i]);
+            painter.setPen(QPen(Qt::NoPen));
+            painter.setBrush(QColor(255, 255, 255, 100));
+            painter.drawPath(path);
         }
-        path.closeSubpath();
-
-        painter.setPen(QPen(Qt::black, 1));
-        painter.setBrush(QColor(240, 240, 240, 150));
-        painter.drawPath(path);
     }
+    controller_.SetLightSource(points[0]);
 }
 
 void RaycasterWidget::DrawPolygons(QPainter& painter) const {
     QBrush polygonBrush(Qt::NoBrush);  // NOLINT
-    QPen polygonPen(Qt::black, 1.5);   // NOLINT
+    QPen polygonPen(Qt::white, 1.5);   // NOLINT
     painter.setBrush(polygonBrush);
     painter.setPen(polygonPen);
 

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <iostream>
 
 std::vector<Polygon>& Controller::GetPolygons() {
     return polygons_;
@@ -37,17 +38,44 @@ void Controller::SetLightSource(const QPointF& new_light_source) {
 
 std::vector<Ray> Controller::CastRays() const {
     std::vector<Ray> rays;
-
     for (const auto& polygon : polygons_) {
         for (const auto& vertex : polygon.GetVertices()) {
+            constexpr double kMaxRayLength = 10000.0;
+            // Вместо того чтобы брать значение диагонали приложения, использую большую константу
             constexpr double kAngleIncrement = 0.0001;
             const double angle = AngleBetween(light_source_, vertex);
             rays.emplace_back(light_source_, vertex, angle);
-            rays.emplace_back(rays.back().Rotate(- kAngleIncrement));
-            rays.emplace_back(rays.back().Rotate(2 * kAngleIncrement));
+
+            const double dx = cosl(angle) * kMaxRayLength;
+            const double dy = -sinl(angle) * kMaxRayLength;
+            const QPointF end_point = light_source_ + QPointF(dx, dy);
+
+            const Ray main_ray(light_source_, end_point, angle);
+
+            const Ray left_ray = main_ray.Rotate(-kAngleIncrement);
+            const Ray right_ray = main_ray.Rotate(kAngleIncrement);
+
+            auto process_ray = [this](const Ray& ray) {
+                double min_dist = std::numeric_limits<double>::max();
+                QPointF closest_intersection = ray.GetEnd();
+
+                for (const auto& poly : polygons_) {
+                    auto intersection = poly.IntersectRay(ray);
+                    if (intersection) {
+                        const double dist = Distance(light_source_, *intersection);
+                        if (dist < min_dist) {
+                            min_dist = dist;
+                            closest_intersection = *intersection;
+                        }
+                    }
+                }
+                return Ray(ray.GetBegin(), closest_intersection, ray.GetAngle());
+            };
+
+            rays.push_back(process_ray(left_ray));
+            rays.push_back(process_ray(right_ray));
         }
     }
-
     return rays;
 }
 
@@ -72,13 +100,13 @@ void Controller::IntersectRays(std::vector<Ray>* rays) const {
 }
 
 double Controller::AngleBetween(const QPointF& center, const QPointF& point) {
-    auto normalizeAngle = [](double angle) {
+    auto normalize_angle = [](double angle) {
         if (angle < 0) {
             angle += 2 * M_PI;
         }
         return angle;
     };
-    return normalizeAngle(atan2(center.y() - point.y(), point.x() - center.x()));
+    return normalize_angle(atan2(center.y() - point.y(), point.x() - center.x()));
 }
 
 void Controller::RemoveAdjacentRays(std::vector<Ray>* rays) const {

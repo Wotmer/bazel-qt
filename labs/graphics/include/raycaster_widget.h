@@ -34,7 +34,8 @@ class RaycasterWidget : public QMainWindow {
     QRadioButton* light_mode_radio_;
     QRadioButton* polygons_mode_radio_;
 
-    void DrawLightArea(QPainter& painter) const;
+    void DrawLightArea(QPainter& painter);
+    std::vector<QPointF> GetLights() const;
     void DrawPolygons(QPainter& painter) const;
     void DrawLightSource(QPainter& painter) const;
     void CreateModeSelector(QWidget* parent);

@@ -23,7 +23,7 @@ class Controller {
 
    private:
     std::vector<Polygon> polygons_;
-    QPointF light_source_;
+    QPointF light_source_ = {100, 100};
     static double Distance(QPointF a, QPointF b);
     static double AngleBetween(const QPointF& center, const QPointF& point);
 };
