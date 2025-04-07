@@ -6,7 +6,7 @@
 Polygon::Polygon(const std::vector<QPointF>& vertices) : vertices_(vertices) {
 }
 
-const std::vector<QPointF>& Polygon::GetVertices() const {
+std::vector<QPointF> Polygon::GetVertices() const {
     return vertices_;
 }
 

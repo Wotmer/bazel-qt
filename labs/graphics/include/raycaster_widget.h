@@ -9,6 +9,7 @@
 #include <QPainter>
 #include <QRadioButton>
 #include <QWidget>
+#include <cstddef>
 
 class RaycasterWidget : public QMainWindow {
     Q_OBJECT
@@ -25,62 +26,56 @@ class RaycasterWidget : public QMainWindow {
     void resizeEvent(QResizeEvent* event) override;
 
    private:
-    static bool CheckSelfIntersection(
-        const Polygon& poly, const QPointF& new_edge_start, const QPointF& new_edge_end) {
-        const auto& vertices = poly.GetVertices();
-        const size_t n = vertices.size();
-
-        if (n < 2) {
+    static bool CheckPolygonIntersections(
+        const std::vector<Polygon>& polygons, const size_t modified_poly_index,
+        const QPointF& segment_start, const QPointF& segment_end, bool is_closing_segment = false) {
+        if (Controller::Distance(segment_start, segment_end) < 1.0) {
             return false;
         }
 
-        for (size_t i = 0; i < n - 1; ++i) {
-            const QPointF& p1 = vertices[i];
-            const QPointF& p2 = vertices[i + 1];
+        if (modified_poly_index < polygons.size()) {
+            const auto& poly = polygons[modified_poly_index];
+            const auto& vertices = poly.GetVertices();
+            const size_t n = vertices.size();
 
-            // Пропускаем соседние стороны (которые имеют общую точку)
-            if (i == n - 2 && p2 == new_edge_start) {
-                continue;
-            }
-            if (i == 0 && p1 == new_edge_start) {
-                continue;
-            }
+            for (size_t i = 0; i < n; ++i) {
+                const QPointF& p1 = vertices[i];
+                const QPointF& p2 = vertices[(i + 1) % n];
 
-            if (Polygon::LineIntersection(p1, p2, new_edge_start, new_edge_end)) {
-                return true;
+                if ((is_closing_segment && i == n - 1) ||
+                    (p1 == segment_start && p2 == segment_end) ||
+                    (p2 == segment_start && p1 == segment_end)) {
+                    continue;
+                }
+
+                if (Polygon::LineIntersection(p1, p2, segment_start, segment_end)) {
+                    return true;
+                }
             }
         }
-        if (n >= 3 && Polygon::LineIntersection(
-                          vertices.back(), vertices.front(), new_edge_start, new_edge_end)) {
-            return true;
-        }
 
-        return false;
-    }
-
-    static bool CheckOtherPolygonsIntersection(const std::vector<Polygon>& polygons, size_t current_poly_index,
-                                      const QPointF& new_edge_start, const QPointF& new_edge_end) {
         for (size_t i = 0; i < polygons.size(); ++i) {
-            if (i == current_poly_index) continue;
+            if (i == modified_poly_index) {
+                continue;
+            }
 
             const auto& poly = polygons[i];
             const auto& vertices = poly.GetVertices();
             const size_t n = vertices.size();
 
-            if (n < 2) continue;
-
-            // Проверяем все стороны многоугольника
             for (size_t j = 0; j < n; ++j) {
                 const QPointF& p1 = vertices[j];
-                const QPointF& p2 = vertices[(j+1)%n];
+                const QPointF& p2 = vertices[(j + 1) % n];
 
-                if (Polygon::LineIntersection(p1, p2, new_edge_start, new_edge_end)) {
+                if (Polygon::LineIntersection(p1, p2, segment_start, segment_end)) {
                     return true;
                 }
             }
         }
+
         return false;
     }
+
     QWidget* drawing_area_;
     Controller controller_;
     QString mode_ = "light";
@@ -89,10 +84,13 @@ class RaycasterWidget : public QMainWindow {
     QButtonGroup* mode_group_;
     QRadioButton* light_mode_radio_;
     QRadioButton* polygons_mode_radio_;
+    QRadioButton* static_lights_radio_;
+    std::vector<QPointF> static_lights_;
 
     void DrawLightArea(QPainter& painter);
-    std::vector<QPointF> GetLights() const;
+    [[nodiscard]] std::vector<QPointF> GetLights() const;
     void DrawPolygons(QPainter& painter) const;
+    static bool IsPointInPolygon(const QPointF& point, const std::vector<QPointF>& polygon);
     void DrawLightSource(QPainter& painter) const;
     void CreateModeSelector(QWidget* parent);
     void UpdateBorderPolygon();

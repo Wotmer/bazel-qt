@@ -20,11 +20,16 @@ class Controller {
     void IntersectRays(std::vector<Ray>* rays) const;
     [[nodiscard]] Polygon CreateLightArea() const;
     void RemoveAdjacentRays(std::vector<Ray>* rays) const;
+    static double Distance(QPointF a, QPointF b);
+
+    void AddStaticLight(const QPointF& pos);
+    [[nodiscard]] const std::vector<QPointF>& GetStaticLights() const;
+    bool IsPointInsideAnyPolygon(const QPointF& point) ;
 
    private:
     std::vector<Polygon> polygons_;
     QPointF light_source_ = {100, 100};
-    static double Distance(QPointF a, QPointF b);
+    std::vector<QPointF> static_lights_;
     static double AngleBetween(const QPointF& center, const QPointF& point);
 };
 #endif  // CONTROLLER_H

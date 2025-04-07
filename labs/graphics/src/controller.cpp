@@ -162,3 +162,33 @@ double Controller::Distance(const QPointF a, const QPointF b) {
     const double dy = b.y() - a.y();
     return std::hypot(dx, dy);
 }
+
+void Controller::AddStaticLight(const QPointF& pos) {
+    if (!IsPointInsideAnyPolygon(pos)) {
+        static_lights_.push_back(pos);
+    }
+}
+
+const std::vector<QPointF>& Controller::GetStaticLights() const {
+    return static_lights_;
+}
+
+bool Controller::IsPointInsideAnyPolygon(const QPointF& point) {
+    for (const auto& poly : polygons_) {
+        const auto& vertices = poly.GetVertices();
+        if (vertices.size() < 3) continue;
+
+        bool inside = false;
+        for (size_t i = 0, j = vertices.size()-1; i < vertices.size(); j = i++) {
+            const QPointF& p1 = vertices[i];
+            const QPointF& p2 = vertices[j];
+
+            if (((p1.y() > point.y()) != (p2.y() > point.y())) &&
+                (point.x() < (p2.x() - p1.x()) * (point.y() - p1.y()) / (p2.y()-p1.y()) + p1.x())) {
+                inside = !inside;
+                }
+        }
+        if (inside) return true;
+    }
+    return false;
+}
