@@ -118,7 +118,7 @@ void RaycasterWidget::DrawLightSource(QPainter& painter) const {
     painter.save();
 
     const QRect drawing_rect = drawing_area_->geometry();
-    std::vector<QPointF> lights = GetLights();
+    std::vector<QPointF> const lights = GetLights();
     for (const QPointF light : lights) {
     const QPointF light_pos_rel = light;//controller_.GetLightSource();
     const QPointF light_pos_abs = drawing_rect.topLeft() + light_pos_rel;
@@ -142,6 +142,21 @@ void RaycasterWidget::mousePressEvent(QMouseEvent* event) {
                 controller_.AddPolygon(Polygon({adjusted_pos}));
                 creating_polygon_ = true;
             } else {
+                const auto& polygons = controller_.GetPolygons();
+                if (!polygons.empty()) {
+                    const auto& current_poly = polygons.back();
+                    const auto& vertices = current_poly.GetVertices();
+                    if (!vertices.empty()) {
+                        const QPointF last_point = vertices.back();
+                        const QPointF new_point = adjusted_pos;
+                        if (CheckSelfIntersection(current_poly, last_point, new_point)) {
+                            return;
+                        }
+                        if (CheckOtherPolygonsIntersection(polygons, polygons.size()-1, last_point, new_point)) {
+                            return;
+                        }
+                    }
+                }
                 controller_.AddVertexToLastPolygon(adjusted_pos);
             }
         } else if (event->button() == Qt::RightButton && creating_polygon_) {
@@ -208,7 +223,7 @@ std::vector<QPointF> RaycasterWidget::GetLights() const {
     for (int i = 0; i < kCount; ++i) {
         constexpr int kRadius = 16;
         const double angle = 2 * M_PI * i / kCount;
-        lights.push_back({lights[0].x() + kRadius * cos(angle), lights[0].y() + kRadius * sin(angle)});
+        lights.emplace_back(lights[0].x() + (kRadius * cosl(angle)), lights[0].y() + (kRadius * sinl(angle)));
     }
 
     return lights;
@@ -219,8 +234,8 @@ void RaycasterWidget::DrawLightArea(QPainter& painter) {
         return;
     }
     std::vector<QPointF> points = GetLights();
-    for (int i = 0; i < points.size(); ++i) {
-        controller_.SetLightSource(points[i]);
+    for (auto point : points) {
+        controller_.SetLightSource(point);
         const auto rays = controller_.CastRays();
 
         /*painter.setPen(QPen(Qt::red, 1, Qt::DotLine));
@@ -243,7 +258,7 @@ void RaycasterWidget::DrawLightArea(QPainter& painter) {
             path.closeSubpath();
 
             painter.setPen(QPen(Qt::NoPen));
-            painter.setBrush(QColor(255, 255, 255, 100));
+            painter.setBrush(QColor(255, 255, 255, 75));
             painter.drawPath(path);
         }
     }

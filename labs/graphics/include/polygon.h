@@ -14,11 +14,11 @@ class Polygon {
     void AddVertex(const QPointF& vertex);
     void UpdateLastVertex(const QPointF& new_vertex);
     [[nodiscard]] std::optional<QPointF> IntersectRay(const Ray& ray) const;
+    static std::optional<QPointF> LineIntersection(
+        const QPointF& a1, const QPointF& a2, const QPointF& b1, const QPointF& b2);
 
    private:
     std::vector<QPointF> vertices_;
     static double Distance(const QPointF& p1, const QPointF& p2);
-    static std::optional<QPointF> LineIntersection(
-        const QPointF& a1, const QPointF& a2, const QPointF& b1, const QPointF& b2);
 };
 #endif  // POLYGON_H
