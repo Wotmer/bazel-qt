@@ -41,7 +41,8 @@ std::vector<Ray> Controller::CastRays() const {
     for (const auto& polygon : polygons_) {
         for (const auto& vertex : polygon.GetVertices()) {
             constexpr double kMaxRayLength = 10000.0;
-            // Вместо того чтобы брать значение диагонали приложения, использую большую константу
+            // Вместо того чтобы брать значение диагонали приложения, использую большую константу (я
+            // ленивый) )
             constexpr double kAngleIncrement = 0.0001;
             const double angle = AngleBetween(light_source_, vertex);
             rays.emplace_back(light_source_, vertex, angle);
@@ -176,19 +177,55 @@ const std::vector<QPointF>& Controller::GetStaticLights() const {
 bool Controller::IsPointInsideAnyPolygon(const QPointF& point) {
     for (const auto& poly : polygons_) {
         const auto& vertices = poly.GetVertices();
-        if (vertices.size() < 3) continue;
+        if (vertices.size() < 3) {
+            continue;
+        }
 
         bool inside = false;
-        for (size_t i = 0, j = vertices.size()-1; i < vertices.size(); j = i++) {
+        for (size_t i = 0, j = vertices.size() - 1; i < vertices.size(); j = i++) {
             const QPointF& p1 = vertices[i];
             const QPointF& p2 = vertices[j];
 
             if (((p1.y() > point.y()) != (p2.y() > point.y())) &&
-                (point.x() < (p2.x() - p1.x()) * (point.y() - p1.y()) / (p2.y()-p1.y()) + p1.x())) {
+                (point.x() <
+                 (p2.x() - p1.x()) * (point.y() - p1.y()) / (p2.y() - p1.y()) + p1.x())) {
                 inside = !inside;
-                }
+            }
         }
-        if (inside) return true;
+        if (inside) {
+            return true;
+        }
     }
     return false;
+}
+
+bool Controller::IsPositionValid(const QPointF& pos) const {
+    if (polygons_.empty()) {
+        return false;
+    }
+    std::vector<QPointF> lights;
+    lights.push_back(pos);
+    constexpr int kCount = 6;
+    for (int i = 0; i < kCount; ++i) {
+        constexpr int kRadius = 16;
+        const double angle = 2 * M_PI * i / kCount;
+        lights.emplace_back(
+            lights[0].x() + (kRadius * cosl(angle)), lights[0].y() + (kRadius * sinl(angle)));
+    }
+
+    const auto& border = polygons_[0].GetVertices();
+    bool res = true;
+    for (auto& light : lights) {
+        bool inside = false;
+        for (size_t i = 0, j = border.size() - 1; i < border.size(); j = i++) {
+            if (((border[i].y() > light.y()) != (border[j].y() > light.y())) &&
+                (light.x() < (border[j].x() - border[i].x()) * (light.y() - border[i].y()) /
+                                   (border[j].y() - border[i].y()) +
+                               border[i].x())) {
+                inside = !inside;
+            }
+        }
+        res = res && inside;
+    }
+    return res;
 }

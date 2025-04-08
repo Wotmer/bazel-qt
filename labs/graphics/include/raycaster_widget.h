@@ -19,6 +19,7 @@ class RaycasterWidget : public QMainWindow {
     void OnModeChanged(int mode);
 
    protected:
+    bool eventFilter(QObject* obj, QEvent* event) override;
     void mousePressEvent(QMouseEvent* event) override;
     void mouseMoveEvent(QMouseEvent* event) override;
     void paintEvent(QPaintEvent* event) override;
@@ -91,8 +92,11 @@ class RaycasterWidget : public QMainWindow {
     [[nodiscard]] std::vector<QPointF> GetLights() const;
     void DrawPolygons(QPainter& painter) const;
     static bool IsPointInPolygon(const QPointF& point, const std::vector<QPointF>& polygon);
+    static bool InLight(
+        const std::vector<QPointF>& light_pos, const std::vector<Polygon>& polygon);
     void DrawLightSource(QPainter& painter) const;
     void CreateModeSelector(QWidget* parent);
     void UpdateBorderPolygon();
 };
+
 #endif  // RAYCASTER_WIDGET_H

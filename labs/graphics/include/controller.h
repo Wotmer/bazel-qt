@@ -24,7 +24,8 @@ class Controller {
 
     void AddStaticLight(const QPointF& pos);
     [[nodiscard]] const std::vector<QPointF>& GetStaticLights() const;
-    bool IsPointInsideAnyPolygon(const QPointF& point) ;
+    bool IsPointInsideAnyPolygon(const QPointF& point);
+    bool IsPositionValid(const QPointF& pos) const;
 
    private:
     std::vector<Polygon> polygons_;

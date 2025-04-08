@@ -12,28 +12,56 @@ RaycasterWidget::RaycasterWidget(QWidget* parent) : QMainWindow(parent) {  // NO
     mainLayout->setContentsMargins(0, 0, 0, 0);
     mainLayout->setSpacing(0);
 
-    QWidget* controlPanel = new QWidget();  // NOLINT
+    QWidget* controlPanel = new QWidget();  // NOLINT//
     controlPanel->setFixedHeight(65);
     CreateModeSelector(controlPanel);
 
     drawing_area_ = new QWidget();  // NOLINT
     drawing_area_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    drawing_area_->setFocusPolicy(Qt::StrongFocus);
 
     mainLayout->addWidget(controlPanel);
     mainLayout->addWidget(drawing_area_, 1);
-    // qDebug() << this->size() << "Размер окна";
-    // qDebug() << drawing_area_->size() << "Размер поля";
 
     UpdateBorderPolygon();
+
+    connect(mode_group_, &QButtonGroup::buttonClicked, [this]() { drawing_area_->setFocus(); });
+
+    drawing_area_->setFocus();
+}
+
+bool RaycasterWidget::eventFilter(QObject* obj, QEvent* event) {
+    if (obj == drawing_area_ && event->type() == QEvent::MouseButtonPress) {
+        drawing_area_->setFocus();
+        const auto mouseEvent = static_cast<QMouseEvent*>(event);
+        mousePressEvent(mouseEvent);
+        return true;
+    }
+    return QMainWindow::eventFilter(obj, event);
 }
 
 void RaycasterWidget::OnModeChanged(const int mode) {
     if (mode == 0) {
         mode_ = "light";
+        if (creating_polygon_) {
+            if (controller_.GetPolygons().back().GetVertices().size() < 2) {
+                controller_.GetPolygons().pop_back();
+            }
+            creating_polygon_ = false;
+        }
     } else if (mode == 1) {
         mode_ = "polygons";
     } else if (mode == 2) {
         mode_ = "static-lights";
+        if (creating_polygon_) {
+            if (controller_.GetPolygons().back().GetVertices().size() < 2) {
+                controller_.GetPolygons().pop_back();
+            }
+            creating_polygon_ = false;
+        }
+    }
+    if (QRadioButton* btn = qobject_cast<QRadioButton*>(focusWidget())) {
+        btn->clearFocus();
     }
     update();
 }
@@ -77,27 +105,20 @@ void RaycasterWidget::CreateModeSelector(QWidget* parent) {
 }
 
 void RaycasterWidget::UpdateBorderPolygon() {
-    // qDebug() << drawing_area_->size() << "UpdateBorder";
     const std::vector border = {
-      QPointF(0, 0), QPointF(this->width(), 0), QPointF(this->width(), this->height() - 65),
-      QPointF(0, this->height() - 65)};
+      QPointF(1, 1), QPointF(this->width() - 1, 1),
+      QPointF(this->width() - 1, this->height() - 65 - 1), QPointF(1, this->height() - 65 - 1)};
 
-    // qDebug() << border[2] << "Размер border";
-    // qDebug() << this->size() << "Размер this";
     if (controller_.GetPolygons().empty()) {
         controller_.AddPolygon(Polygon(border));
     } else {
         controller_.GetPolygons()[0] = Polygon(border);
-        // qDebug() << "Замена границы";
     }
-    // qDebug() << controller_.GetPolygons().size() << "Вектор";
-    // qDebug() << controller_.GetPolygons()[0].GetVertices()[2] << "Вершина 0";
 }
 
 void RaycasterWidget::resizeEvent(QResizeEvent* event) {
     QMainWindow::resizeEvent(event);
     UpdateBorderPolygon();
-    // qDebug() << "11111111111111";
     update();
 }
 
@@ -112,12 +133,12 @@ void RaycasterWidget::paintEvent(QPaintEvent* /*event*/) {
 
     DrawPolygons(painter);
 
-    if (mode_ == "light") {
+    if (mode_ == "light" || mode_ == "static-lights") {
         DrawLightArea(painter);
     }
     painter.restore();
 
-    if (mode_ == "light") {
+    if (mode_ == "light" || mode_ == "static-lights") {
         DrawLightSource(painter);
     }
 
@@ -138,7 +159,7 @@ void RaycasterWidget::DrawLightSource(QPainter& painter) const {
         const QPointF light_pos_rel = light;
         const QPointF light_pos_abs = drawing_rect.topLeft() + light_pos_rel;
 
-        painter.drawEllipse(light_pos_abs, 2, 2);
+        painter.drawEllipse(light_pos_abs, 3, 3);
     }
 
     painter.setBrush(QColor(0, 255, 0));
@@ -149,29 +170,20 @@ void RaycasterWidget::DrawLightSource(QPainter& painter) const {
     painter.restore();
 }
 
-void RaycasterWidget::mousePressEvent(QMouseEvent* event) {
+void RaycasterWidget::mousePressEvent(QMouseEvent* event) {  // NOLINT
     const QRect drawing_rect = drawing_area_->geometry();
     if (!drawing_rect.contains(event->pos())) {
         return;
     }
     const QPointF adjusted_pos = event->pos() - drawing_rect.topLeft();
     if (mode_ == "static-lights" && event->button() == Qt::LeftButton) {
-        bool inside_polygon = false;
-        for (const auto& poly : controller_.GetPolygons()) {
-            if (IsPointInPolygon(adjusted_pos, poly.GetVertices())) {
-                inside_polygon = true;
-                break;
-            }
-        }
-        if (!inside_polygon) {
-            static_lights_.push_back(adjusted_pos);
-        }
+        static_lights_.push_back(adjusted_pos);
     } else if (mode_ == "static-lights" && event->button() == Qt::RightButton) {
         const QPointF pos = event->pos() - drawing_rect.topLeft();
         static_lights_.erase(
             std::ranges::remove_if(
                 static_lights_,
-                [pos, this](const QPointF& p) { return controller_.Distance(p, pos) < 5.0; })
+                [pos, this](const QPointF& p) { return Controller::Distance(p, pos) < 5.0; })
                 .begin(),
             static_lights_.end());
         update();
@@ -186,13 +198,12 @@ void RaycasterWidget::mousePressEvent(QMouseEvent* event) {
                 if (polygons.empty()) {
                     return;
                 }
-
                 const auto& current_poly = polygons.back();
                 const auto& vertices = current_poly.GetVertices();
                 const size_t current_idx = polygons.size() - 1;
 
                 if (vertices.size() >= 2 &&
-                    controller_.Distance(adjusted_pos, vertices.front()) < 10.0) {
+                    Controller::Distance(adjusted_pos, vertices.front()) < 10.0) {
                     if (!CheckPolygonIntersections(
                             polygons, current_idx, vertices.back(), vertices.front(), true)) {
                         controller_.AddVertexToLastPolygon(vertices.front());
@@ -210,32 +221,31 @@ void RaycasterWidget::mousePressEvent(QMouseEvent* event) {
                             polygons, current_idx, last_point, adjusted_pos)) {
                         controller_.AddVertexToLastPolygon(adjusted_pos);
                     } else {
-                        controller_.GetPolygons().back().GetVertices().pop_back();
+                        polygons.back().GetVertices().pop_back();
                     }
                 }
             }
-        } else if (event->button() == Qt::RightButton && creating_polygon_) {
+            controller_.AddVertexToLastPolygon(adjusted_pos);
+        } else if (event->button() == Qt::RightButton) {
             if (!polygons.empty() && polygons.back().GetVertices().size() < 2) {
                 controller_.GetPolygons().pop_back();
             }
             creating_polygon_ = false;
         }
-        controller_.AddVertexToLastPolygon(adjusted_pos);
-    }
-
-    else if (event->button() == Qt::RightButton && creating_polygon_) {
-        if (controller_.GetPolygons().back().GetVertices().size() < 2) {
-            controller_.GetPolygons().pop_back();
-        }
-        creating_polygon_ = false;
     } else if (mode_ == "light") {
-        if (creating_polygon_) {
-            if (controller_.GetPolygons().back().GetVertices().size() < 2) {
-                controller_.GetPolygons().pop_back();
+        const QPointF old_light = controller_.GetLightSource();
+        const bool can_move = InLight(GetLights(), controller_.GetPolygons());
+        if (controller_.IsPositionValid(adjusted_pos)) {
+            controller_.SetLightSource(adjusted_pos);
+            if (!InLight(GetLights(), controller_.GetPolygons()) || can_move) {
+                update();
+            } else {
+                controller_.SetLightSource(old_light);
             }
-            creating_polygon_ = false;
+            update();
+        } else {
+            controller_.SetLightSource(old_light);
         }
-        controller_.SetLightSource(adjusted_pos);
     }
     update();
 }
@@ -245,7 +255,19 @@ void RaycasterWidget::mouseMoveEvent(QMouseEvent* event) {
         const QRect drawing_rect = drawing_area_->geometry();
         if (drawing_rect.contains(event->pos())) {
             const QPointF adjusted_pos = event->pos() - drawing_rect.topLeft();
-            controller_.SetLightSource(adjusted_pos);
+            const QPointF old_light = controller_.GetLightSource();
+            const bool can_move = InLight(GetLights(), controller_.GetPolygons());
+            if (controller_.IsPositionValid(adjusted_pos)) {
+                controller_.SetLightSource(adjusted_pos);
+                if (!InLight(GetLights(), controller_.GetPolygons()) || can_move) {
+                    update();
+                } else {
+                    controller_.SetLightSource(old_light);
+                }
+                update();
+            } else {
+                controller_.SetLightSource(old_light);
+            }
             update();
         }
     } else if (mode_ == "polygons" && creating_polygon_) {
@@ -258,6 +280,7 @@ void RaycasterWidget::keyPressEvent(QKeyEvent* event) {
     if (mode_ == "light") {
         QPointF light = controller_.GetLightSource();
         constexpr int kStep = 5;
+        const QPointF old_light = light;
         switch (event->key()) {
             case Qt::Key_Left:
                 light.rx() -= kStep;
@@ -274,8 +297,18 @@ void RaycasterWidget::keyPressEvent(QKeyEvent* event) {
             default:
                 return;
         }
-        controller_.SetLightSource(light);
-        update();
+        const bool can_move = InLight(GetLights(), controller_.GetPolygons());
+        if (controller_.IsPositionValid(light)) {
+            controller_.SetLightSource(light);
+            if (!InLight(GetLights(), controller_.GetPolygons()) || can_move) {
+                update();
+            } else {
+                controller_.SetLightSource(old_light);
+            }
+            update();
+        } else {
+            controller_.SetLightSource(old_light);
+        }
     }
 }
 
@@ -297,9 +330,8 @@ void RaycasterWidget::DrawLightArea(QPainter& painter) {
     if (mode_ != "light" && mode_ != "static-lights") {
         return;
     }
-    QPointF original_light = controller_.GetLightSource();
+    const QPointF original_light = controller_.GetLightSource();
     std::vector<QPointF> points = GetLights();
-    points.insert(points.end(), static_lights_.begin(), static_lights_.end());
     for (auto point : points) {
         controller_.SetLightSource(point);
         const auto rays = controller_.CastRays();
@@ -316,16 +348,30 @@ void RaycasterWidget::DrawLightArea(QPainter& painter) {
 
             painter.setPen(QPen(Qt::NoPen));
             painter.setBrush(QColor(255, 255, 255, 80));
-            //if (std::find(static_lights_.begin(), static_lights_.end(), points) != static_lights_.end()) {
-            //    painter.setBrush(QColor(255, 240, 150, 120));
-            //}
-            /*if (i == 0) {
-                painter.setBrush(QColor(255, 255, 255, 120));
-            }*/
             painter.drawPath(path);
         }
     }
-    controller_.SetLightSource(original_light);}
+    for (auto point : static_lights_) {
+        controller_.SetLightSource(point);
+        const auto rays = controller_.CastRays();
+        const Polygon light_area = controller_.CreateLightArea();
+        const auto& vertices = light_area.GetVertices();
+
+        if (vertices.size() > 2) {
+            QPainterPath path;
+            path.moveTo(vertices[0]);
+            for (size_t j = 1; j < vertices.size(); ++j) {
+                path.lineTo(vertices[j]);
+            }
+            path.closeSubpath();
+
+            painter.setPen(QPen(Qt::NoPen));
+            painter.setBrush(QColor(255, 240, 150, 70));
+            painter.drawPath(path);
+        }
+    }
+    controller_.SetLightSource(original_light);
+}
 
 void RaycasterWidget::DrawPolygons(QPainter& painter) const {
     QBrush polygonBrush(Qt::NoBrush);  // NOLINT
@@ -365,10 +411,9 @@ bool RaycasterWidget::IsPointInPolygon(const QPointF& point, const std::vector<Q
     if (polygon.size() < 3) {
         return false;
     }
-
     bool inside = false;
     for (size_t i = 1, j = polygon.size() - 1; i < polygon.size(); j = i++) {
-        if (polygon[i].y() > point.y() != polygon[j].y() > point.y() &&
+        if ((polygon[i].y() > point.y()) != (polygon[j].y() > point.y()) &&
             point.x() < (polygon[j].x() - polygon[i].x()) * (point.y() - polygon[i].y()) /
                                 (polygon[j].y() - polygon[i].y()) +
                             polygon[i].x()) {
@@ -376,4 +421,17 @@ bool RaycasterWidget::IsPointInPolygon(const QPointF& point, const std::vector<Q
         }
     }
     return inside;
+}
+
+bool RaycasterWidget::InLight(
+    const std::vector<QPointF>& light_pos, const std::vector<Polygon>& polygon) {
+    bool light_in = false;
+    for (const auto& point : light_pos) {
+        for (int i = 1; i < polygon.size(); ++i) {
+            if (IsPointInPolygon(point, polygon[i].GetVertices())) {
+                light_in = true;
+            }
+        }
+    }
+    return light_in;
 }
