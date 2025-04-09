@@ -1,9 +1,9 @@
 #include "../include/raycaster_widget.h"
 
+#include <QBoxLayout>
+#include <QGroupBox>
+#include <QPainter>
 #include <QPainterPath>
-#include <cstddef>
-#include <qboxlayout.h>
-#include <qgroupbox.h>
 
 RaycasterWidget::RaycasterWidget(QWidget* parent) : QMainWindow(parent) {  // NOLINT
     QWidget* centralWidget = new QWidget(this);                            // NOLINT
@@ -33,8 +33,8 @@ RaycasterWidget::RaycasterWidget(QWidget* parent) : QMainWindow(parent) {  // NO
 bool RaycasterWidget::eventFilter(QObject* obj, QEvent* event) {
     if (obj == drawing_area_ && event->type() == QEvent::MouseButtonPress) {
         drawing_area_->setFocus();
-        const auto mouseEvent = static_cast<QMouseEvent*>(event);
-        mousePressEvent(mouseEvent);
+        auto* const mouse_event = dynamic_cast<QMouseEvent*>(event);
+        mousePressEvent(mouse_event);
         return true;
     }
     return QMainWindow::eventFilter(obj, event);
@@ -60,7 +60,15 @@ void RaycasterWidget::OnModeChanged(const int mode) {
             creating_polygon_ = false;
         }
     }
-    if (QRadioButton* btn = qobject_cast<QRadioButton*>(focusWidget())) {
+    if (auto* btn = qobject_cast<QRadioButton*>(focusWidget())) {
+        btn->clearFocus();
+    }
+    update();
+}
+
+void RaycasterWidget::BuildWalls(const bool go) {
+    wall_ = go;
+    if (auto* btn = qobject_cast<QCheckBox*>(focusWidget())) {
         btn->clearFocus();
     }
     update();
@@ -73,13 +81,17 @@ void RaycasterWidget::CreateModeSelector(QWidget* parent) {
     light_mode_radio_ = new QRadioButton("Режим света", mode_box);               // NOLINT
     polygons_mode_radio_ = new QRadioButton("Режим многоугольников", mode_box);  // NOLINT
     static_lights_radio_ = new QRadioButton("Статичные источники", mode_box);    // NOLINT
+    walls_ = new QCheckBox("Непроходимые фигуры");
 
-    light_mode_radio_->setMinimumWidth(150);
+    light_mode_radio_->setMinimumWidth(120);
     polygons_mode_radio_->setMinimumWidth(180);
     static_lights_radio_->setMinimumWidth(180);
+    walls_->setMinimumWidth(180);
 
     light_mode_radio_->setChecked(true);
     mode_ = "light";
+    walls_->setChecked(false);
+    wall_ = false;
 
     mode_group_ = new QButtonGroup(this);  // NOLINT
     mode_group_->addButton(light_mode_radio_, 0);
@@ -89,10 +101,13 @@ void RaycasterWidget::CreateModeSelector(QWidget* parent) {
     connect(  // NOLINT
         mode_group_, &QButtonGroup::idClicked, this, &RaycasterWidget::OnModeChanged);
 
+    connect(walls_, &QCheckBox::toggled, this, &RaycasterWidget::BuildWalls);
+
     radio_layout->addWidget(light_mode_radio_);
     radio_layout->addWidget(polygons_mode_radio_);
     radio_layout->addWidget(static_lights_radio_);
     radio_layout->addStretch();
+    radio_layout->addWidget(walls_);
     mode_box->setLayout(radio_layout);
 
     QVBoxLayout* mainLayout = new QVBoxLayout(parent);  // NOLINT
@@ -183,7 +198,7 @@ void RaycasterWidget::mousePressEvent(QMouseEvent* event) {  // NOLINT
         static_lights_.erase(
             std::ranges::remove_if(
                 static_lights_,
-                [pos, this](const QPointF& p) { return Controller::Distance(p, pos) < 5.0; })
+                [pos, this](const QPointF& p) { return Controller::Distance(p, pos) < 8.0; })
                 .begin(),
             static_lights_.end());
         update();
@@ -237,12 +252,9 @@ void RaycasterWidget::mousePressEvent(QMouseEvent* event) {  // NOLINT
         const bool can_move = InLight(GetLights(), controller_.GetPolygons());
         if (controller_.IsPositionValid(adjusted_pos)) {
             controller_.SetLightSource(adjusted_pos);
-            if (!InLight(GetLights(), controller_.GetPolygons()) || can_move) {
-                update();
-            } else {
+            if (InLight(GetLights(), controller_.GetPolygons()) && !can_move && wall_) {
                 controller_.SetLightSource(old_light);
             }
-            update();
         } else {
             controller_.SetLightSource(old_light);
         }
@@ -259,12 +271,9 @@ void RaycasterWidget::mouseMoveEvent(QMouseEvent* event) {
             const bool can_move = InLight(GetLights(), controller_.GetPolygons());
             if (controller_.IsPositionValid(adjusted_pos)) {
                 controller_.SetLightSource(adjusted_pos);
-                if (!InLight(GetLights(), controller_.GetPolygons()) || can_move) {
-                    update();
-                } else {
+                if (InLight(GetLights(), controller_.GetPolygons()) && !can_move && wall_) {
                     controller_.SetLightSource(old_light);
                 }
-                update();
             } else {
                 controller_.SetLightSource(old_light);
             }
@@ -300,14 +309,15 @@ void RaycasterWidget::keyPressEvent(QKeyEvent* event) {
         const bool can_move = InLight(GetLights(), controller_.GetPolygons());
         if (controller_.IsPositionValid(light)) {
             controller_.SetLightSource(light);
-            if (!InLight(GetLights(), controller_.GetPolygons()) || can_move) {
-                update();
+            if (controller_.IsPositionValid(light)) {
+                controller_.SetLightSource(light);
+                if (InLight(GetLights(), controller_.GetPolygons()) && !can_move && wall_) {
+                    controller_.SetLightSource(old_light);
+                }
             } else {
                 controller_.SetLightSource(old_light);
             }
             update();
-        } else {
-            controller_.SetLightSource(old_light);
         }
     }
 }
@@ -331,7 +341,7 @@ void RaycasterWidget::DrawLightArea(QPainter& painter) {
         return;
     }
     const QPointF original_light = controller_.GetLightSource();
-    std::vector<QPointF> points = GetLights();
+    const std::vector<QPointF> points = GetLights();
     for (auto point : points) {
         controller_.SetLightSource(point);
         const auto rays = controller_.CastRays();

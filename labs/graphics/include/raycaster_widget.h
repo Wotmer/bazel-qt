@@ -4,9 +4,9 @@
 #include "controller.h"
 
 #include <QButtonGroup>
+#include <QCheckBox>
 #include <QMainWindow>
 #include <QMouseEvent>
-#include <QPainter>
 #include <QRadioButton>
 #include <QWidget>
 #include <cstddef>
@@ -17,6 +17,7 @@ class RaycasterWidget : public QMainWindow {
    public:
     explicit RaycasterWidget(QWidget* parent = nullptr);
     void OnModeChanged(int mode);
+    void BuildWalls(bool go);
 
    protected:
     bool eventFilter(QObject* obj, QEvent* event) override;
@@ -80,6 +81,7 @@ class RaycasterWidget : public QMainWindow {
     QWidget* drawing_area_;
     Controller controller_;
     QString mode_ = "light";
+    bool wall_ = false;
     bool creating_polygon_ = false;
 
     QButtonGroup* mode_group_;
@@ -87,13 +89,13 @@ class RaycasterWidget : public QMainWindow {
     QRadioButton* polygons_mode_radio_;
     QRadioButton* static_lights_radio_;
     std::vector<QPointF> static_lights_;
+    QCheckBox* walls_;
 
     void DrawLightArea(QPainter& painter);
     [[nodiscard]] std::vector<QPointF> GetLights() const;
     void DrawPolygons(QPainter& painter) const;
     static bool IsPointInPolygon(const QPointF& point, const std::vector<QPointF>& polygon);
-    static bool InLight(
-        const std::vector<QPointF>& light_pos, const std::vector<Polygon>& polygon);
+    static bool InLight(const std::vector<QPointF>& light_pos, const std::vector<Polygon>& polygon);
     void DrawLightSource(QPainter& painter) const;
     void CreateModeSelector(QWidget* parent);
     void UpdateBorderPolygon();
