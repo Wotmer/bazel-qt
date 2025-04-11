@@ -1,8 +1,8 @@
 #include "../include/polygon.h"
 
 #include <algorithm>
-#include <limits>
 #include <iostream>
+#include <limits>
 
 Polygon::Polygon(const std::vector<QPointF>& vertices) : vertices_(vertices) {
 }

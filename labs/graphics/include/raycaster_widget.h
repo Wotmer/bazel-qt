@@ -21,6 +21,9 @@ class RaycasterWidget : public QMainWindow {
 
    protected:
     bool eventFilter(QObject* obj, QEvent* event) override;
+    static bool CheckPolygonSelfIntersections(
+        const std::vector<Polygon>& polygons, size_t poly_index, const QPointF& new_segment_start,
+        const QPointF& new_segment_end);
     void mousePressEvent(QMouseEvent* event) override;
     void mouseMoveEvent(QMouseEvent* event) override;
     void paintEvent(QPaintEvent* event) override;
@@ -34,16 +37,31 @@ class RaycasterWidget : public QMainWindow {
         if (Controller::Distance(segment_start, segment_end) < 1.0) {
             return false;
         }
-
         if (modified_poly_index < polygons.size()) {
             const auto& poly = polygons[modified_poly_index];
             const auto& vertices = poly.GetVertices();
             const size_t n = vertices.size();
 
+            if (n < 2) {
+                return false;
+            }
             for (size_t i = 0; i < n; ++i) {
                 const QPointF& p1 = vertices[i];
                 const QPointF& p2 = vertices[(i + 1) % n];
 
+                /*if (p1 == segment_start || p2 == segment_end || p2 == segment_start ||
+                    p1 == segment_end) {
+                    continue;
+                }
+                if (i > 0 && vertices[i - 1] == segment_start && p1 == segment_end) {
+                    continue;
+                }
+                if (i < n - 1 && p2 == segment_start && vertices[(i + 2) % n] == segment_end) {
+                    continue;
+                }
+                if (is_closing_segment && i == n - 1) {
+                    continue;
+                }*/
                 if ((is_closing_segment && i == n - 1) ||
                     (p1 == segment_start && p2 == segment_end) ||
                     (p2 == segment_start && p1 == segment_end)) {
@@ -55,9 +73,8 @@ class RaycasterWidget : public QMainWindow {
                 }
             }
         }
-
         for (size_t i = 0; i < polygons.size(); ++i) {
-            if (i == modified_poly_index) {
+            if (/*!is_closing_segment && */i == modified_poly_index) {
                 continue;
             }
 
@@ -68,7 +85,6 @@ class RaycasterWidget : public QMainWindow {
             for (size_t j = 0; j < n; ++j) {
                 const QPointF& p1 = vertices[j];
                 const QPointF& p2 = vertices[(j + 1) % n];
-
                 if (Polygon::LineIntersection(p1, p2, segment_start, segment_end)) {
                     return true;
                 }

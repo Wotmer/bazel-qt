@@ -81,7 +81,7 @@ void RaycasterWidget::CreateModeSelector(QWidget* parent) {
     light_mode_radio_ = new QRadioButton("Режим света", mode_box);               // NOLINT
     polygons_mode_radio_ = new QRadioButton("Режим многоугольников", mode_box);  // NOLINT
     static_lights_radio_ = new QRadioButton("Статичные источники", mode_box);    // NOLINT
-    walls_ = new QCheckBox("Непроходимые фигуры");
+    walls_ = new QCheckBox("Непроходимые фигуры");                               // NOLINT
 
     light_mode_radio_->setMinimumWidth(120);
     polygons_mode_radio_->setMinimumWidth(180);
@@ -173,7 +173,11 @@ void RaycasterWidget::DrawLightSource(QPainter& painter) const {
     for (const QPointF light : lights) {
         const QPointF light_pos_rel = light;
         const QPointF light_pos_abs = drawing_rect.topLeft() + light_pos_rel;
+        // QRadialGradient gradient(light_pos_abs, 15.0);
+        // gradient.setColorAt(0, QColor(237, 226, 200, 200));
+        // gradient.setColorAt(1, QColor(137, 110, 45, 100));
 
+        painter.setBrush(QColor(255, 150, 150));
         painter.drawEllipse(light_pos_abs, 3, 3);
     }
 
@@ -217,22 +221,11 @@ void RaycasterWidget::mousePressEvent(QMouseEvent* event) {  // NOLINT
                 const auto& vertices = current_poly.GetVertices();
                 const size_t current_idx = polygons.size() - 1;
 
-                if (vertices.size() >= 2 &&
-                    Controller::Distance(adjusted_pos, vertices.front()) < 10.0) {
-                    if (!CheckPolygonIntersections(
-                            polygons, current_idx, vertices.back(), vertices.front(), true)) {
-                        controller_.AddVertexToLastPolygon(vertices.front());
-                        creating_polygon_ = true;
-                    } else {
-                        if (!vertices.empty()) {
-                            controller_.GetPolygons().back().GetVertices().pop_back();
-                        }
-                        creating_polygon_ = true;
-                    }
-                } else if (!vertices.empty()) {
+                if (vertices.size() >= 2) {
                     const QPointF last_point = vertices.back();
-
                     if (!CheckPolygonIntersections(
+                            polygons, current_idx, vertices.back(), vertices.front(), true) &&
+                        !CheckPolygonIntersections(
                             polygons, current_idx, last_point, adjusted_pos)) {
                         controller_.AddVertexToLastPolygon(adjusted_pos);
                     } else {
@@ -247,7 +240,9 @@ void RaycasterWidget::mousePressEvent(QMouseEvent* event) {  // NOLINT
             }
             creating_polygon_ = false;
         }
-    } else if (mode_ == "light") {
+    }
+
+    else if (mode_ == "light") {
         const QPointF old_light = controller_.GetLightSource();
         const bool can_move = InLight(GetLights(), controller_.GetPolygons());
         if (controller_.IsPositionValid(adjusted_pos)) {
@@ -280,7 +275,9 @@ void RaycasterWidget::mouseMoveEvent(QMouseEvent* event) {
             update();
         }
     } else if (mode_ == "polygons" && creating_polygon_) {
-        controller_.UpdateLastPolygon(event->pos());
+        if (controller_.IsPositionValid(event->pos())) {
+            controller_.UpdateLastPolygon(event->pos());
+        }
         update();
     }
 }
@@ -309,16 +306,14 @@ void RaycasterWidget::keyPressEvent(QKeyEvent* event) {
         const bool can_move = InLight(GetLights(), controller_.GetPolygons());
         if (controller_.IsPositionValid(light)) {
             controller_.SetLightSource(light);
-            if (controller_.IsPositionValid(light)) {
-                controller_.SetLightSource(light);
-                if (InLight(GetLights(), controller_.GetPolygons()) && !can_move && wall_) {
-                    controller_.SetLightSource(old_light);
-                }
-            } else {
+            qDebug() << InLight(GetLights(), controller_.GetPolygons()) << "\n";
+            if (InLight(GetLights(), controller_.GetPolygons()) && !can_move && wall_) {
                 controller_.SetLightSource(old_light);
             }
-            update();
+        } else {
+            controller_.SetLightSource(old_light);
         }
+        update();
     }
 }
 
@@ -375,8 +370,12 @@ void RaycasterWidget::DrawLightArea(QPainter& painter) {
             }
             path.closeSubpath();
 
+            QRadialGradient gradient(point, 250.0);
+            gradient.setColorAt(0, QColor(255, 240, 150, 150));
+            gradient.setColorAt(1, QColor(255, 240, 150, 0));
+
             painter.setPen(QPen(Qt::NoPen));
-            painter.setBrush(QColor(255, 240, 150, 70));
+            painter.setBrush(gradient);  // QColor(255, 240, 150, 70));
             painter.drawPath(path);
         }
     }
@@ -444,4 +443,31 @@ bool RaycasterWidget::InLight(
         }
     }
     return light_in;
+}
+
+bool RaycasterWidget::CheckPolygonSelfIntersections(
+    const std::vector<Polygon>& polygons, size_t poly_index, const QPointF& new_segment_start,
+    const QPointF& new_segment_end) {
+    if (poly_index >= polygons.size()) {
+        return false;
+    }
+
+    const auto& vertices = polygons[poly_index].GetVertices();
+    const size_t n = vertices.size();
+
+    for (size_t i = 0; i < n - 2; ++i) {
+        size_t j = (i + 1) % n;
+
+        if (vertices[i] == new_segment_start || vertices[j] == new_segment_start ||
+            vertices[i] == new_segment_end || vertices[j] == new_segment_end) {
+            continue;
+        }
+
+        if (Polygon::LineIntersection(
+                vertices[i], vertices[j], new_segment_start, new_segment_end)) {
+            return true;
+        }
+    }
+
+    return false;
 }

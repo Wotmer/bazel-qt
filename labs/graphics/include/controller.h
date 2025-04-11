@@ -27,6 +27,24 @@ class Controller {
     bool IsPointInsideAnyPolygon(const QPointF& point);
     bool IsPositionValid(const QPointF& pos) const;
 
+    bool IsSegmentIntersectingAnyPolygon(const QPointF& p1, const QPointF& p2, size_t exclude_polygon = -1) const {
+        for (size_t i = 0; i < polygons_.size(); ++i) {
+            if (i == exclude_polygon) continue;
+
+            const auto& vertices = polygons_[i].GetVertices();
+            const size_t n = vertices.size();
+            for (size_t j = 0; j < n; ++j) {
+                const QPointF& v1 = vertices[j];
+                const QPointF& v2 = vertices[(j + 1) % n];
+
+                if (Polygon::LineIntersection(p1, p2, v1, v2)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
    private:
     std::vector<Polygon> polygons_;
     QPointF light_source_ = {100, 100};
