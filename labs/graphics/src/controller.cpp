@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <iostream>
 
 std::vector<Polygon>& Controller::GetPolygons() {
     return polygons_;
@@ -17,9 +16,70 @@ void Controller::AddPolygon(const Polygon& a) {
 }
 
 void Controller::AddVertexToLastPolygon(const QPointF& new_vertex) {
-    if (!polygons_.empty()) {
-        polygons_.back().AddVertex(new_vertex);
+    if (polygons_.empty()) {
+        return;
     }
+    polygons_.back().AddVertex(new_vertex);
+    std::vector<QPointF> vertices = polygons_.back().GetVertices();
+    if (vertices.size() >= 2) {
+        for (size_t i = 0; i + 1 < vertices.size() - 1; ++i) {
+            for (size_t j = i + 2; j + 1 < vertices.size(); ++j) {
+                if (j == i + 1) {
+                    continue;
+                }
+                if (Polygon::LineIntersection(
+                        vertices[i], vertices[i + 1], vertices[j], vertices[j + 1])) {
+                    polygons_.back().DeleteLastVertex();
+                    return;
+                }
+            }
+            if (i == 0 || i + 1 == vertices.size() - 1) {
+                continue;
+            }
+            if (Polygon::LineIntersection(
+                    vertices[i], vertices[i + 1], vertices.back(), vertices[0])) {
+                polygons_.back().DeleteLastVertex();
+                return;
+            }
+        }
+        if (DoesPolygonIntersectOthers(polygons_.back().GetVertices())) {
+            polygons_.back().DeleteLastVertex();
+        }
+    }
+}
+
+bool Controller::DoesPolygonIntersectOthers(const std::vector<QPointF>& new_vertices) {
+    const std::vector<Polygon> polygons = GetPolygons();
+    int count = 0;
+    for (const auto& poly : polygons) {
+        if (count == 0 || count == polygons.size() - 1) {
+            count++;
+            continue;
+        }
+        count++;
+        const auto& vertices = poly.GetVertices();
+        if (vertices.size() < 2) {
+            continue;
+        }
+
+        for (size_t i = 0; i + 1 < new_vertices.size(); ++i) {
+            for (size_t j = 0; j + 1 < vertices.size(); ++j) {
+                if (Polygon::LineIntersection(
+                        new_vertices[i], new_vertices[i + 1], vertices[j], vertices[j + 1])) {
+                    return true;
+                }
+                if (Polygon::LineIntersection(
+                        new_vertices.back(), new_vertices[0], vertices[j], vertices[j + 1])) {
+                    return true;
+                }
+            }
+            if (Polygon::LineIntersection(
+                    new_vertices[i], new_vertices[i + 1], vertices.back(), vertices[0])) {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 void Controller::UpdateLastPolygon(const QPointF& new_vertex) {
@@ -41,8 +101,8 @@ std::vector<Ray> Controller::CastRays() const {
     for (const auto& polygon : polygons_) {
         for (const auto& vertex : polygon.GetVertices()) {
             constexpr double kMaxRayLength = 10000.0;
-            // Вместо того чтобы брать значение диагонали приложения, использую большую константу (я
-            // ленивый) )
+            // Вместо того чтобы брать значение диагонали приложения, использую большую
+            // константу (я ленивый) )
             constexpr double kAngleIncrement = 0.0001;
             const double angle = AngleBetween(light_source_, vertex);
             rays.emplace_back(light_source_, vertex, angle);
@@ -174,7 +234,7 @@ const std::vector<QPointF>& Controller::GetStaticLights() const {
     return static_lights_;
 }
 
-bool Controller::IsPointInsideAnyPolygon(const QPointF& point) {
+bool Controller::IsPointInsideAnyPolygon(const QPointF& point) const {
     for (const auto& poly : polygons_) {
         const auto& vertices = poly.GetVertices();
         if (vertices.size() < 3) {
@@ -220,8 +280,8 @@ bool Controller::IsPositionValid(const QPointF& pos) const {
         for (size_t i = 0, j = border.size() - 1; i < border.size(); j = i++) {
             if (((border[i].y() > light.y()) != (border[j].y() > light.y())) &&
                 (light.x() < (border[j].x() - border[i].x()) * (light.y() - border[i].y()) /
-                                   (border[j].y() - border[i].y()) +
-                               border[i].x())) {
+                                     (border[j].y() - border[i].y()) +
+                                 border[i].x())) {
                 inside = !inside;
             }
         }

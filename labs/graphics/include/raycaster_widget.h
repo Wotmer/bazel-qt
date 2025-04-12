@@ -21,9 +21,6 @@ class RaycasterWidget : public QMainWindow {
 
    protected:
     bool eventFilter(QObject* obj, QEvent* event) override;
-    static bool CheckPolygonSelfIntersections(
-        const std::vector<Polygon>& polygons, size_t poly_index, const QPointF& new_segment_start,
-        const QPointF& new_segment_end);
     void mousePressEvent(QMouseEvent* event) override;
     void mouseMoveEvent(QMouseEvent* event) override;
     void paintEvent(QPaintEvent* event) override;

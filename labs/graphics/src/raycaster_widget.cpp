@@ -133,6 +133,17 @@ void RaycasterWidget::UpdateBorderPolygon() {
 
 void RaycasterWidget::resizeEvent(QResizeEvent* event) {
     QMainWindow::resizeEvent(event);
+    const std::vector border = {
+      QPointF(1, 1), QPointF(this->width() - 1, 1),
+      QPointF(this->width() - 1, this->height() - 65 - 1), QPointF(1, this->height() - 65 - 1)};
+
+    for (auto& polygon : controller_.GetPolygons()) {
+        for (int i = polygon.GetVertices().size() - 1; i >= 0 ; --i) {
+            if (!IsPointInPolygon(polygon.GetVertices()[i], border)) {
+                polygon.DeleteVertex(i);
+            }
+        }
+    }
     UpdateBorderPolygon();
     update();
 }
@@ -217,23 +228,8 @@ void RaycasterWidget::mousePressEvent(QMouseEvent* event) {  // NOLINT
                 if (polygons.empty()) {
                     return;
                 }
-                const auto& current_poly = polygons.back();
-                const auto& vertices = current_poly.GetVertices();
-                const size_t current_idx = polygons.size() - 1;
-
-                if (vertices.size() >= 2) {
-                    const QPointF last_point = vertices.back();
-                    if (!CheckPolygonIntersections(
-                            polygons, current_idx, vertices.back(), vertices.front(), true) &&
-                        !CheckPolygonIntersections(
-                            polygons, current_idx, last_point, adjusted_pos)) {
-                        controller_.AddVertexToLastPolygon(adjusted_pos);
-                    } else {
-                        polygons.back().GetVertices().pop_back();
-                    }
-                }
+                controller_.AddVertexToLastPolygon(adjusted_pos);
             }
-            controller_.AddVertexToLastPolygon(adjusted_pos);
         } else if (event->button() == Qt::RightButton) {
             if (!polygons.empty() && polygons.back().GetVertices().size() < 2) {
                 controller_.GetPolygons().pop_back();
@@ -275,8 +271,8 @@ void RaycasterWidget::mouseMoveEvent(QMouseEvent* event) {
             update();
         }
     } else if (mode_ == "polygons" && creating_polygon_) {
-        if (controller_.IsPositionValid(event->pos())) {
-            controller_.UpdateLastPolygon(event->pos());
+        if (controller_.IsPositionValid(event->pos() - drawing_area_->geometry().topLeft())) {
+            controller_.UpdateLastPolygon(event->pos() - drawing_area_->geometry().topLeft());
         }
         update();
     }
@@ -306,7 +302,6 @@ void RaycasterWidget::keyPressEvent(QKeyEvent* event) {
         const bool can_move = InLight(GetLights(), controller_.GetPolygons());
         if (controller_.IsPositionValid(light)) {
             controller_.SetLightSource(light);
-            qDebug() << InLight(GetLights(), controller_.GetPolygons()) << "\n";
             if (InLight(GetLights(), controller_.GetPolygons()) && !can_move && wall_) {
                 controller_.SetLightSource(old_light);
             }
@@ -337,7 +332,14 @@ void RaycasterWidget::DrawLightArea(QPainter& painter) {
     }
     const QPointF original_light = controller_.GetLightSource();
     const std::vector<QPointF> points = GetLights();
+    const std::vector border = {
+      QPointF(1, 1), QPointF(this->width() - 1, 1),
+      QPointF(this->width() - 1, this->height() - 65 - 1), QPointF(1, this->height() - 65 - 1)};
+
     for (auto point : points) {
+        if (!IsPointInPolygon(point, border)) {
+            continue;
+        }
         controller_.SetLightSource(point);
         const auto rays = controller_.CastRays();
         const Polygon light_area = controller_.CreateLightArea();
@@ -421,7 +423,7 @@ bool RaycasterWidget::IsPointInPolygon(const QPointF& point, const std::vector<Q
         return false;
     }
     bool inside = false;
-    for (size_t i = 1, j = polygon.size() - 1; i < polygon.size(); j = i++) {
+    for (size_t i = 0, j = polygon.size() - 1; i < polygon.size(); j = i++) {
         if ((polygon[i].y() > point.y()) != (polygon[j].y() > point.y()) &&
             point.x() < (polygon[j].x() - polygon[i].x()) * (point.y() - polygon[i].y()) /
                                 (polygon[j].y() - polygon[i].y()) +
@@ -443,31 +445,4 @@ bool RaycasterWidget::InLight(
         }
     }
     return light_in;
-}
-
-bool RaycasterWidget::CheckPolygonSelfIntersections(
-    const std::vector<Polygon>& polygons, size_t poly_index, const QPointF& new_segment_start,
-    const QPointF& new_segment_end) {
-    if (poly_index >= polygons.size()) {
-        return false;
-    }
-
-    const auto& vertices = polygons[poly_index].GetVertices();
-    const size_t n = vertices.size();
-
-    for (size_t i = 0; i < n - 2; ++i) {
-        size_t j = (i + 1) % n;
-
-        if (vertices[i] == new_segment_start || vertices[j] == new_segment_start ||
-            vertices[i] == new_segment_end || vertices[j] == new_segment_end) {
-            continue;
-        }
-
-        if (Polygon::LineIntersection(
-                vertices[i], vertices[j], new_segment_start, new_segment_end)) {
-            return true;
-        }
-    }
-
-    return false;
 }

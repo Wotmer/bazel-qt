@@ -12,6 +12,7 @@ class Controller {
     [[nodiscard]] const std::vector<Polygon>& GetPolygons() const;
     void AddPolygon(const Polygon& a);
     void AddVertexToLastPolygon(const QPointF& new_vertex);
+    bool DoesPolygonIntersectOthers(const std::vector<QPointF>& new_vertices);
     void UpdateLastPolygon(const QPointF& new_vertex);
     [[nodiscard]] QPointF GetLightSource() const;
     void SetLightSource(const QPointF& new_light_source);
@@ -24,7 +25,7 @@ class Controller {
 
     void AddStaticLight(const QPointF& pos);
     [[nodiscard]] const std::vector<QPointF>& GetStaticLights() const;
-    bool IsPointInsideAnyPolygon(const QPointF& point);
+    bool IsPointInsideAnyPolygon(const QPointF& point) const;
     bool IsPositionValid(const QPointF& pos) const;
 
     bool IsSegmentIntersectingAnyPolygon(const QPointF& p1, const QPointF& p2, size_t exclude_polygon = -1) const {

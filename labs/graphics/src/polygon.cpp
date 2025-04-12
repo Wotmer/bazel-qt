@@ -1,7 +1,6 @@
 #include "../include/polygon.h"
 
 #include <algorithm>
-#include <iostream>
 #include <limits>
 
 Polygon::Polygon(const std::vector<QPointF>& vertices) : vertices_(vertices) {
@@ -9,6 +8,14 @@ Polygon::Polygon(const std::vector<QPointF>& vertices) : vertices_(vertices) {
 
 std::vector<QPointF> Polygon::GetVertices() const {
     return vertices_;
+}
+
+void Polygon::DeleteLastVertex() {
+    vertices_.pop_back();
+}
+
+void Polygon::DeleteVertex(const int index) {
+    vertices_.erase(vertices_.begin() + index);
 }
 
 void Polygon::AddVertex(const QPointF& vertex) {
