@@ -84,6 +84,18 @@ bool Controller::DoesPolygonIntersectOthers(const std::vector<QPointF>& new_vert
 
 void Controller::UpdateLastPolygon(const QPointF& new_vertex) {
     if (!polygons_.empty()) {
+        //size_t index = polygons_.size() - 1;
+        //polygons_.back().DeleteLastVertex();
+        //std::vector<QPointF> vertices = polygons_.back().GetVertices();
+        //AddVertexToLastPolygon(new_vertex);
+        //if (polygons_.back().GetVertices().size() < index) {
+        //    for (size_t i = 0; i < polygons_.back().GetVertices().size(); ++i) {
+        //        polygons_.back().DeleteLastVertex();
+        //    }
+        //    for (size_t i = 0; i < index; ++i) {
+        //        AddVertexToLastPolygon(vertices[i]);
+        //    }
+        //}
         polygons_.back().UpdateLastVertex(new_vertex);
     }
 }

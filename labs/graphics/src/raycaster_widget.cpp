@@ -144,6 +144,11 @@ void RaycasterWidget::resizeEvent(QResizeEvent* event) {
             }
         }
     }
+    for (int i = static_lights_.size() - 1; i >= 0; --i) {
+        if (!IsPointInPolygon(static_lights_[i], border)) {
+            static_lights_.erase(static_lights_.begin() + i);
+        }
+    }
     UpdateBorderPolygon();
     update();
 }
