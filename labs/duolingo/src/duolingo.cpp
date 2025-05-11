@@ -8,13 +8,13 @@
 #include <QMessageBox>
 #include <QPushButton>
 #include <QRadioButton>
-#include <QRegularExpression>
 #include <QTextEdit>
 #include <QVBoxLayout>
+#include <qlistwidget.h>
 
 // TODO добавить возможность переводить предложения, где надо вставить текст
 
-Duolingo::Duolingo(QWidget* parent)
+Duolingo::Duolingo(QWidget* parent)  // NOLINT
     : QMainWindow(parent)
     , player(new QMediaPlayer(this))
     , currentExercise(0)
@@ -23,173 +23,225 @@ Duolingo::Duolingo(QWidget* parent)
     , currentDifficulty("start") {
     // панель сверху
     QMenu* menu = menuBar()->addMenu("Меню");
-    QAction* difficulty = menu->addAction("Выбрать сложность");
-    QAction* rating = menu->addAction("Рейтинг пользователей");
-    QAction* help = menu->addAction("Помощь");
+    const QAction* difficulty = menu->addAction("Выбрать сложность");
+    const QAction* rating = menu->addAction("Рейтинг пользователей");
+    const QAction* help = menu->addAction("Помощь");
+
     connect(difficulty, &QAction::triggered, this, &Duolingo::ShowDifficultyDialog);
     connect(help, &QAction::triggered, this, &Duolingo::ShowHelp);
     connect(rating, &QAction::triggered, this, &Duolingo::ShowRating);
+    SetupExercises();
 
     QWidget* centralWidget = new QWidget(this);            // NOLINT
     QVBoxLayout* layout = new QVBoxLayout(centralWidget);  // NOLINT
 
-    stackedWidget = new QStackedWidget;                    // NOLINT
-    BeginPage();
-    LearnPage();
-    TranslationPage();
-    GrammarPage();
-    QComboBox* pageComboBox = new QComboBox;  // NOLINT
+    stackedWidget = new QStackedWidget(this);              // NOLINT
+    CreatePages();
+
+    QComboBox* pageComboBox = new QComboBox;               // NOLINT
     pageComboBox->addItem(tr("Главная"));
     pageComboBox->addItem(tr("Cлова"));
     pageComboBox->addItem(tr("Перевод"));
     pageComboBox->addItem(tr("Грамматика"));
+    pageComboBox->addItem(tr("Рейтинг"));
+
     connect(
         pageComboBox, QOverload<int>::of(&QComboBox::activated), stackedWidget,
         &QStackedWidget::setCurrentIndex);
+    connect(
+        pageComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+        &Duolingo::IsModeChanged);
 
-    layout->addWidget(pageComboBox, 5, Qt::AlignRight);
+    layout->addWidget(pageComboBox, 0, Qt::AlignRight);
     layout->addWidget(stackedWidget);
+
     centralWidget->setLayout(layout);
     setCentralWidget(centralWidget);
 
-    /*QWidget* centralWidget = new QWidget(this);                // NOLINT
-    QHBoxLayout* mainLayout = new QHBoxLayout(centralWidget);  // NOLINT
-
-    // выбор упражнения сверху
-    QGroupBox* menuGroup = new QGroupBox();                 // NOLINT
-    QVBoxLayout* menuLayout = new QVBoxLayout();            // NOLINT
-    QPushButton* learn = new QPushButton("Cлова");          // NOLINT
-    QPushButton* translation = new QPushButton("Перевод");  // NOLINT
-    QPushButton* grammar = new QPushButton("Грамматика");   // NOLINT
-    menuGroup->setFixedWidth(120);
-    menuLayout->addWidget(learn);
-    menuLayout->addWidget(translation);
-    menuLayout->addWidget(grammar);
-    menuGroup->setLayout(menuLayout);///////////////////
-
-    QWidget* statusWidget = new QWidget();          // NOLINT
-    QHBoxLayout* statusLayout = new QHBoxLayout();  // NOLINT
-
-    progressBar = new QProgressBar();               // NOLINT
-    progressBar->setRange(0, 5);
-    progressBar->setValue(0);
-
-    scoreLabel = new QLabel("Результат: 0");  // NOLINT
-    timerLabel = new QLabel("Время: 00:00");  // NOLINT
-
-    statusLayout->addWidget(progressBar);
-    statusLayout->addWidget(scoreLabel);
-    statusLayout->addWidget(timerLabel);
-    statusWidget->setLayout(statusLayout);
-
-    QPushButton* submit = new QPushButton("Отправить");  // NOLINT
-    QVBoxLayout* rightLayout = new QVBoxLayout();        // NOLINT
-    rightLayout->addWidget(stackedWidget);
-    rightLayout->addWidget(statusWidget);
-    rightLayout->addWidget(submit);
-
-    mainLayout->addWidget(menuGroup, 1);
-    mainLayout->addLayout(rightLayout, 3);
-
-    centralWidget->setLayout(mainLayout);
-    setCentralWidget(centralWidget);
-
-    connect(translation, &QPushButton::clicked, this, &Duolingo::OnTranslationClicked);
-    connect(grammar, &QPushButton::clicked, this, &Duolingo::OnGrammarClicked);
-    connect(submit, &QPushButton::clicked, this, &Duolingo::OnSubmitClicked);
-
-    exerciseTimer = new QTimer(this);
-    countdownTimer = new QTimer(this);
+    exerciseTimer = new QTimer(this);   // NOLINT
+    countdownTimer = new QTimer(this);  // NOLINT
     connect(exerciseTimer, &QTimer::timeout, this, &Duolingo::OnTimeout);
     connect(countdownTimer, &QTimer::timeout, this, &Duolingo::UpdateTimer);
-
-    SetupExercises();*/
 }
 
-void Duolingo::BeginPage() const {
-    QVBoxLayout* welcomeLayout = new QVBoxLayout();                                       // NOLINT
+void Duolingo::CreatePages() {
     QWidget* welcomeScreen = new QWidget();                                               // NOLINT
-    welcomeScreen->setLayout(welcomeLayout);
+    QVBoxLayout* welcomeLayout = new QVBoxLayout(welcomeScreen);                          // NOLINT
     QLabel* text = new QLabel("Добро пожаловать в приложение для изучения испанского!");  // NOLINT
     if (currentDifficulty == "start") {
         qDebug() << currentDifficulty;
-        text = new QLabel( // NOLINT
-            "Добро пожаловать в приложение для изучения испанского!\n"                    // NOLINT
-            "Пройдите тест, чтобы определить Ваш уровень владения языком\n(позже этот уровень "  // NOLINT
-            "можно будет изменить в меню)");  // NOLINT
+        text = new QLabel(
+            "Добро пожаловать в приложение для изучения испанского!\n"
+            "Пройдите тест, чтобы определить Ваш уровень владения языком\n(позже этот уровень "
+            "можно будет изменить в меню)");
     }
     welcomeLayout->addWidget(text, 0, Qt::AlignCenter);
     stackedWidget->addWidget(welcomeScreen);
+
+    learnPageWidget = new QWidget();                 // NOLINT
+    learnLayout = new QVBoxLayout(learnPageWidget);  // NOLINT
+    LearnPage(learnLayout);
+    stackedWidget->addWidget(learnPageWidget);
+
+    translationPageWidget = new QWidget();                       // NOLINT
+    translationLayout = new QVBoxLayout(translationPageWidget);  // NOLINT
+    TranslationPage(translationLayout);
+    stackedWidget->addWidget(translationPageWidget);
+
+    grammarPageWidget = new QWidget();                   // NOLINT
+    grammarLayout = new QVBoxLayout(grammarPageWidget);  // NOLINT
+    GrammarPage(grammarLayout);
+    stackedWidget->addWidget(grammarPageWidget);
+
+    QWidget* ratingPageWidget = new QWidget();                          // NOLINT
+    QVBoxLayout* ratingLayout = new QVBoxLayout(ratingPageWidget);      // NOLINT
+    QLabel* rating = new QLabel("Embajadores de la lengua Española!");  // NOLINT
+    ratingList = new QListWidget();
+    ratingLayout->addWidget(rating, 0, Qt::AlignCenter);
+    ratingLayout->addWidget(ratingList, 0, Qt::AlignCenter);
+    stackedWidget->addWidget(ratingPageWidget);
 }
 
-void Duolingo::LearnPage() {
-    QWidget* learnPageWidget = new QWidget;            // NOLINT
-    QHBoxLayout* learnPageLayout = new QHBoxLayout();  // NOLINT
-    QHBoxLayout* statusLayout = new QHBoxLayout();     // NOLINT
+void Duolingo::LearnPage(QVBoxLayout* layout) {
+    QWidget* statusWidget = new QWidget();                      // NOLINT
+    QHBoxLayout* statusLayout = new QHBoxLayout(statusWidget);  // NOLINT
 
-    progressBar = new QProgressBar();                  // NOLINT
-    progressBar->setRange(0, 5);
-    progressBar->setValue(0);
+    learnProgressBar = new QProgressBar();
+    learnProgressBar->setRange(0, 5);
+    learnProgressBar->setValue(0);
+    learnScoreLabel = new QLabel("Результат: 0");
+    learnTimerLabel = new QLabel("Время: 00:00");
 
-    scoreLabel = new QLabel("Результат: 0");             // NOLINT
-    timerLabel = new QLabel("Время: 00:00");             // NOLINT
+    statusLayout->addWidget(learnProgressBar);
+    statusLayout->addWidget(learnScoreLabel);
+    statusLayout->addWidget(learnTimerLabel);
+
+
+    learnExerciseWidget = new QWidget();
+    learnExerciseWidget->setLayout(new QVBoxLayout());
 
     QPushButton* submit = new QPushButton("Отправить");  // NOLINT
+    connect(submit, &QPushButton::clicked, this, &Duolingo::OnSubmitClicked);
 
-    statusLayout->addWidget(progressBar);
-    statusLayout->addWidget(scoreLabel);
-    statusLayout->addWidget(timerLabel);
-    learnPageLayout->addLayout(statusLayout);
-    learnPageLayout->addWidget(submit);
-
-    exerciseTimer = new QTimer(this);
-    countdownTimer = new QTimer(this);
-    connect(exerciseTimer, &QTimer::timeout, this, &Duolingo::OnTimeout);
-    connect(countdownTimer, &QTimer::timeout, this, &Duolingo::UpdateTimer);
-
-    SetupExercises();
-
-    stackedWidget->addWidget(learnPageWidget);
+    layout->addWidget(statusWidget);
+    layout->addWidget(learnExerciseWidget, 1);
+    layout->addWidget(submit);
 }
 
-void Duolingo::TranslationPage() {
-    QWidget* translationPageWidget = new QWidget;  // NOLINT
-    stackedWidget->addWidget(translationPageWidget);
+void Duolingo::TranslationPage(QVBoxLayout* layout) {
+    QWidget* statusWidget = new QWidget();                      // NOLINT
+    QHBoxLayout* statusLayout = new QHBoxLayout(statusWidget);  // NOLINT
+
+    translateProgressBar = new QProgressBar();
+    translateProgressBar->setRange(0, 5);
+    translateProgressBar->setValue(0);
+    translateScoreLabel = new QLabel("Результат: 0");
+    translateTimerLabel = new QLabel("Время: 00:00");
+
+    statusLayout->addWidget(translateProgressBar);
+    statusLayout->addWidget(translateScoreLabel);
+    statusLayout->addWidget(translateTimerLabel);
+
+
+    translationExerciseWidget = new QWidget();
+    translationExerciseWidget->setLayout(new QVBoxLayout());
+
+    QPushButton* submit = new QPushButton("Отправить");  // NOLINT
+    connect(submit, &QPushButton::clicked, this, &Duolingo::OnSubmitClicked);
+
+    layout->addWidget(statusWidget);
+    layout->addWidget(translationExerciseWidget, 1);
+    layout->addWidget(submit);
 }
 
-void Duolingo::GrammarPage() {
-    QWidget* grammarPageWidget = new QWidget;  // NOLINT
-    stackedWidget->addWidget(grammarPageWidget);
+void Duolingo::GrammarPage(QVBoxLayout* layout) {
+    QWidget* statusWidget = new QWidget();                      // NOLINT
+    QHBoxLayout* statusLayout = new QHBoxLayout(statusWidget);  // NOLINT
+
+    grammarProgressBar = new QProgressBar();
+    grammarProgressBar->setRange(0, 5);
+    grammarProgressBar->setValue(0);
+    grammarScoreLabel = new QLabel("Результат: 0");
+    grammarTimerLabel = new QLabel("Время: 00:00");
+
+    statusLayout->addWidget(grammarProgressBar);
+    statusLayout->addWidget(grammarScoreLabel);
+    statusLayout->addWidget(grammarTimerLabel);
+
+
+    grammarExerciseWidget = new QWidget();
+    grammarExerciseWidget->setLayout(new QVBoxLayout());
+
+    QPushButton* submit = new QPushButton("Отправить");  // NOLINT
+    connect(submit, &QPushButton::clicked, this, &Duolingo::OnSubmitClicked);
+
+    layout->addWidget(statusWidget);
+    layout->addWidget(grammarExerciseWidget, 1);
+    layout->addWidget(submit);
 }
 
-Duolingo::~Duolingo() {
-    delete player;
-    delete exerciseTimer;
-    delete countdownTimer;
+/*
+void Duolingo::CreateCommonPageElements(QVBoxLayout* layout) {
+    QWidget* statusWidget = new QWidget();                      // NOLINT
+    QHBoxLayout* statusLayout = new QHBoxLayout(statusWidget);  // NOLINT
+
+    learnProgressBar = new QProgressBar();
+    learnProgressBar->setRange(0, 5);
+    learnProgressBar->setValue(0);
+    learnScoreLabel = new QLabel("Результат: 0");
+    learnTimerLabel = new QLabel("Время: 00:00");
+
+    statusLayout->addWidget(learnProgressBar);
+    statusLayout->addWidget(learnScoreLabel);
+    statusLayout->addWidget(learnTimerLabel);
+
+    currentExerciseWidget = new QWidget();
+    currentExerciseWidget->setLayout(new QVBoxLayout());
+
+    QPushButton* submit = new QPushButton("Отправить");  // NOLINT
+    connect(submit, &QPushButton::clicked, this, &Duolingo::OnSubmitClicked);
+
+    layout->addWidget(statusWidget);
+    layout->addWidget(currentExerciseWidget, 1);
+    layout->addWidget(submit);
+}
+*/
+
+void Duolingo::IsModeChanged(const int index) {
+    mode = index;
+    if (index == 1) {
+        OnLearnClicked();
+    } else if (index == 2) {
+        OnTranslationClicked();
+    } else if (index == 3) {
+        OnGrammarClicked();
+    } else {
+        countdownTimer->stop();
+    }
 }
 
 void Duolingo::SetupExercises() {
     translationExercises = {
-      {"Привет", "Hola"}, {"Пока", "Adios"}, {"Спасибо", "Gracias"}, {"Пожалуйста", ""}};
+      {"Привет", "Hola"}, {"Пока", "Adios"}, {"Спасибо", "Gracias"}, {"Пожалуйста", "Por favor"}};
 
     grammarQuestions = {
-      "I ___ (to eat) an apple", "She ___ (to go) to school", "We ___ (to have) a cat",
-      "They ___ (to be) happy", "You ___ (to speak) French"};
+      "Yo ___ (comer) una manzana", "Ella ___ (ir) a la escuela", "Nosotros ___ (tener) un gato",
+      "Ellos ___ (ser) felices", "Tú ___ (hablar) español"};
 
     grammarOptions = {
-      {"eat", "eats", "eating", "ate"},
-      {"go", "goes", "going", "went"},
-      {"have", "has", "having", "had"},
-      {"are", "is", "were", "be"},
-      {"speak", "speaks", "speaking", "spoke"}};
+      {"como", "comes", "comemos", "comen"},
+      {"voy", "va", "vamos", "van"},
+      {"tengo", "tiene", "tenemos", "tienen"},
+      {"soy", "es", "somos", "son"},
+      {"hablo", "hablas", "hablamos", "hablan"}};
 
-    grammarAnswers = {0, 1, 0, 0, 0};
+    grammarAnswers = {0, 1, 2, 3, 1};
 }
 
-void Duolingo::OnTranslationClicked() {
-    currentExercise = 0;
+void Duolingo::OnLearnClicked() {
+    /*currentExercise = 0;
     wrongAttempts = 0;
-    progressBar->setMaximum(translationExercises.size());  // NOLINT
+    progressBar->setMaximum(translationExercises.size());
     progressBar->setValue(0);
 
     if (currentDifficulty == "Начинающий") {
@@ -200,10 +252,28 @@ void Duolingo::OnTranslationClicked() {
         timeLeft = 60;
     }
 
-    timerLabel->setText(QString("Time: %1:%2")
-                            .arg(timeLeft / 60, 2, 10, QLatin1Char('0'))
-                            .arg(timeLeft % 60, 2, 10, QLatin1Char('0')));
+    UpdateTimerDisplay();
+    countdownTimer->start(1000);
+    exerciseTimer->start(timeLeft * 1000);
 
+    ShowLearnExercise();*/
+}
+
+void Duolingo::OnTranslationClicked() {
+    currentExercise = 0;
+    wrongAttempts = 0;
+    translateProgressBar->setMaximum(translationExercises.size());
+    translateProgressBar->setValue(0);
+
+    if (currentDifficulty == "Начинающий") {
+        timeLeft = 120;
+    } else if (currentDifficulty == "Продвинутый") {
+        timeLeft = 90;
+    } else {
+        timeLeft = 60;
+    }
+
+    UpdateTimerDisplay();
     countdownTimer->start(1000);
     exerciseTimer->start(timeLeft * 1000);
 
@@ -213,8 +283,8 @@ void Duolingo::OnTranslationClicked() {
 void Duolingo::OnGrammarClicked() {
     currentExercise = 0;
     wrongAttempts = 0;
-    progressBar->setMaximum(grammarQuestions.size());  // NOLINT
-    progressBar->setValue(0);
+    grammarProgressBar->setMaximum(grammarQuestions.size());
+    grammarProgressBar->setValue(0);
 
     if (currentDifficulty == "Начинающий") {
         timeLeft = 150;
@@ -224,14 +294,33 @@ void Duolingo::OnGrammarClicked() {
         timeLeft = 90;
     }
 
-    timerLabel->setText(QString("Time: %1:%2")
-                            .arg(timeLeft / 60, 2, 10, QLatin1Char('0'))
-                            .arg(timeLeft % 60, 2, 10, QLatin1Char('0')));
-
+    UpdateTimerDisplay();
     countdownTimer->start(1000);
     exerciseTimer->start(timeLeft * 1000);
 
     ShowGrammarExercise();
+}
+
+void Duolingo::ShowLearnExercise() {
+    if (currentExercise >= translationExercises.size()) {
+        FinishExercise(true);
+        return;
+    }
+
+    QLayoutItem* child;
+    while ((child = learnExerciseWidget->layout()->takeAt(0))) {
+        delete child->widget();
+        delete child;
+    }
+
+    QVBoxLayout* exerciseLayout = qobject_cast<QVBoxLayout*>(learnExerciseWidget->layout());
+    QLabel* wordLabel = new QLabel(translationExercises[currentExercise].second);  // NOLINT
+    QLabel* instruction = new QLabel("Запомните это слово:");                      // NOLINT
+
+    exerciseLayout->addWidget(instruction);
+    exerciseLayout->addWidget(wordLabel);
+
+    stackedWidget->setCurrentIndex(1);
 }
 
 void Duolingo::ShowTranslationExercise() {
@@ -240,26 +329,22 @@ void Duolingo::ShowTranslationExercise() {
         return;
     }
 
-    QWidget* translationWidget = new QWidget();                                   // NOLINT
-    QVBoxLayout* layout = new QVBoxLayout();                                      // NOLINT
+    QLayoutItem* child;
+    while ((child = translationExerciseWidget->layout()->takeAt(0))) {
+        delete child->widget();
+        delete child;
+    }
 
+    QVBoxLayout* exerciseLayout = qobject_cast<QVBoxLayout*>(translationExerciseWidget->layout());
     QLabel* instruction = new QLabel("Переведите на испанский:");                 // NOLINT
     QLabel* wordLabel = new QLabel(translationExercises[currentExercise].first);  // NOLINT
     QTextEdit* answerEdit = new QTextEdit();                                      // NOLINT
 
-    layout->addWidget(instruction);
-    layout->addWidget(wordLabel);
-    layout->addWidget(answerEdit);
-    translationWidget->setLayout(layout);
+    exerciseLayout->addWidget(instruction);
+    exerciseLayout->addWidget(wordLabel);
+    exerciseLayout->addWidget(answerEdit);
 
-    if (stackedWidget->count() > 1) {
-        QWidget* oldWidget = stackedWidget->widget(1);
-        stackedWidget->removeWidget(oldWidget);
-        delete oldWidget;
-    }
-
-    stackedWidget->addWidget(translationWidget);
-    stackedWidget->setCurrentIndex(1);
+    stackedWidget->setCurrentIndex(2);
 }
 
 void Duolingo::ShowGrammarExercise() {
@@ -268,55 +353,49 @@ void Duolingo::ShowGrammarExercise() {
         return;
     }
 
-    QWidget* grammarWidget = new QWidget();                                           // NOLINT
-    QVBoxLayout* layout = new QVBoxLayout();                                          // NOLINT
+    QLayoutItem* child;
+    while ((child = grammarExerciseWidget->layout()->takeAt(0))) {
+        delete child->widget();
+        delete child;
+    }
 
+    QVBoxLayout* exerciseLayout = qobject_cast<QVBoxLayout*>(grammarExerciseWidget->layout());
     QLabel* questionLabel = new QLabel(grammarQuestions[currentExercise]);            // NOLINT
     QButtonGroup* optionsGroup = new QButtonGroup(this);                              // NOLINT
 
     for (int i = 0; i < grammarOptions[currentExercise].size(); ++i) {
         QRadioButton* option = new QRadioButton(grammarOptions[currentExercise][i]);  // NOLINT
         optionsGroup->addButton(option, i);
-        layout->addWidget(option);
+        exerciseLayout->addWidget(option);
     }
 
-    layout->addWidget(questionLabel);
-    grammarWidget->setLayout(layout);
+    exerciseLayout->addWidget(questionLabel);
 
-    // Replace current widget in stack
-    if (stackedWidget->count() > 1) {
-        QWidget* oldWidget = stackedWidget->widget(1);
-        stackedWidget->removeWidget(oldWidget);
-        delete oldWidget;
-    }
-
-    stackedWidget->addWidget(grammarWidget);
-    stackedWidget->setCurrentIndex(1);
+    stackedWidget->setCurrentIndex(3);
 }
 
-void Duolingo::OnSubmitClicked() {
-    if (stackedWidget->currentIndex() == 0) {
-        return;
-    }
 
-    if (progressBar->value() == 0) {
+void Duolingo::OnSubmitClicked() {
+    int currentPage = stackedWidget->currentIndex();
+
+    if (currentPage == 1) {
+        currentExercise++;
+        learnProgressBar->setValue(learnProgressBar->value() + 1);
+
         if (currentExercise < translationExercises.size()) {
-            CheckTranslationAnswer();
+            ShowLearnExercise();
         } else {
-            CheckGrammarAnswer();
+            FinishExercise(true);
         }
-    } else {
-        QWidget* current = stackedWidget->currentWidget();
-        if (current->findChild<QTextEdit*>()) {
-            CheckTranslationAnswer();
-        } else if (current->findChild<QRadioButton*>()) {
-            CheckGrammarAnswer();
-        }
+    } else if (currentPage == 2) {
+        CheckTranslationAnswer();
+    } else if (currentPage == 3) {
+        CheckGrammarAnswer();
     }
 }
 
 void Duolingo::CheckTranslationAnswer() {
-    QTextEdit* answerEdit = stackedWidget->currentWidget()->findChild<QTextEdit*>();
+    QTextEdit* answerEdit = translationExerciseWidget->findChild<QTextEdit*>();
     if (!answerEdit) {
         return;
     }
@@ -327,7 +406,7 @@ void Duolingo::CheckTranslationAnswer() {
     if (IsAnswerCorrect(userAnswer, correctAnswer)) {
         PlaySound(true);
         currentExercise++;
-        progressBar->setValue(progressBar->value() + 1);
+        learnProgressBar->setValue(learnProgressBar->value() + 1);
         wrongAttempts = 0;
 
         if (currentExercise < translationExercises.size()) {
@@ -341,27 +420,27 @@ void Duolingo::CheckTranslationAnswer() {
         if (wrongAttempts >= 3) {
             FinishExercise(false);
         } else {
-            QMessageBox::warning(this, "Incorrect", "Try again!");
+            QMessageBox::warning(this, "Неверно", "Попробуйте еще раз!");
         }
     }
 }
 
 void Duolingo::CheckGrammarAnswer() {
-    QButtonGroup* optionsGroup = stackedWidget->currentWidget()->findChild<QButtonGroup*>();
+    QButtonGroup* optionsGroup = grammarExerciseWidget->findChild<QButtonGroup*>();
     if (!optionsGroup) {
         return;
     }
 
     int selectedId = optionsGroup->checkedId();
     if (selectedId == -1) {
-        QMessageBox::warning(this, "Ничего не выбрано.", "Пожалуйста, выберите ответ!");
+        QMessageBox::warning(this, "Не выбрано", "Пожалуйста, выберите вариант ответа!");
         return;
     }
 
     if (selectedId == grammarAnswers[currentExercise]) {
         PlaySound(true);
         currentExercise++;
-        progressBar->setValue(progressBar->value() + 1);
+        learnProgressBar->setValue(learnProgressBar->value() + 1);
         wrongAttempts = 0;
 
         if (currentExercise < grammarQuestions.size()) {
@@ -375,46 +454,13 @@ void Duolingo::CheckGrammarAnswer() {
         if (wrongAttempts >= 3) {
             FinishExercise(false);
         } else {
-            QMessageBox::warning(this, "Неправильно", "Попробуйте снова!");
+            QMessageBox::warning(this, "Неверно", "Попробуйте еще раз!");
         }
     }
 }
 
 bool Duolingo::IsAnswerCorrect(const QString& userAnswer, const QString& correctAnswer) {
-    // Simple comparison with case insensitivity and ignoring some special characters
-    QString simplifiedUser = userAnswer.toLower().trimmed();
-    QString simplifiedCorrect = correctAnswer.toLower().trimmed();
-
-    // Remove common punctuation
-    simplifiedUser.remove(QRegularExpression("[.,;!?]"));
-    simplifiedCorrect.remove(QRegularExpression("[.,;!?]"));
-
-    // Handle common French accents and special characters
-    simplifiedUser.replace("é", "e")
-        .replace("è", "e")
-        .replace("ê", "e")
-        .replace("à", "a")
-        .replace("â", "a")
-        .replace("î", "i")
-        .replace("ô", "o")
-        .replace("û", "u")
-        .replace("ç", "c");
-
-    simplifiedCorrect.replace("é", "e")
-        .replace("è", "e")
-        .replace("ê", "e")
-        .replace("à", "a")
-        .replace("â", "a")
-        .replace("î", "i")
-        .replace("ô", "o")
-        .replace("û", "u")
-        .replace("ç", "c");
-
-    // Allow for contractions (like "t'aime" vs "te aime")
-    simplifiedUser.replace("' ", "'").replace(" '", "'");
-    simplifiedCorrect.replace("' ", "'").replace(" '", "'");
-
-    return simplifiedUser == simplifiedCorrect;
+    return userAnswer == correctAnswer;
 }
 
 void Duolingo::FinishExercise(bool success) {
@@ -422,27 +468,27 @@ void Duolingo::FinishExercise(bool success) {
     countdownTimer->stop();
 
     if (success) {
-        int pointsEarned = 10 * progressBar->maximum();
+        int pointsEarned = 10 * learnProgressBar->maximum();
         score += pointsEarned;
-        scoreLabel->setText(QString("Score: %1").arg(score));
+        learnScoreLabel->setText(QString("Результат: %1").arg(score));
 
         PlaySound(true);
         QMessageBox::information(
-            this, "Поздравляем",
-            QString("You completed the exercise!\nPoints earned: %1").arg(pointsEarned));
+            this, "Поздравляем!",
+            QString("Вы завершили упражнение!\nНабрано очков: %1").arg(pointsEarned));
     } else {
         PlaySound(false);
-        QMessageBox::information(this, "Exercise Over", "You made too many mistakes. Try again!");
+        QMessageBox::information(
+            this, "Упражнение завершено", "Слишком много ошибок. Попробуйте еще раз!");
     }
 
-    // Reset to welcome screen
     stackedWidget->setCurrentIndex(0);
-    progressBar->setValue(0);
+    learnProgressBar->setValue(0);
 }
 
 void Duolingo::OnTimeout() {
     FinishExercise(false);
-    QMessageBox::information(this, "Time's Up", "The time for this exercise has expired.");
+    QMessageBox::information(this, "Время вышло", "Время на выполнение упражнения истекло.");
 }
 
 void Duolingo::UpdateTimer() {
@@ -453,55 +499,89 @@ void Duolingo::UpdateTimer() {
         return;
     }
 
-    timerLabel->setText(QString("Time: %1:%2")
-                            .arg(timeLeft / 60, 2, 10, QLatin1Char('0'))
-                            .arg(timeLeft % 60, 2, 10, QLatin1Char('0')));
+    UpdateTimerDisplay();
+}
+
+void Duolingo::UpdateTimerDisplay() const {
+    switch (mode) {
+        case 1:
+            learnTimerLabel->setText(QString("Время: %1:%2")
+                                         .arg(timeLeft / 60, 2, 10, QLatin1Char('0'))
+                                         .arg(timeLeft % 60, 2, 10, QLatin1Char('0')));
+            break;
+        case 2:
+            translateTimerLabel->setText(QString("Время: %1:%2")
+                                             .arg(timeLeft / 60, 2, 10, QLatin1Char('0'))
+                                             .arg(timeLeft % 60, 2, 10, QLatin1Char('0')));
+            break;
+        case 3:
+            grammarTimerLabel->setText(QString("Время: %1:%2")
+                                           .arg(timeLeft / 60, 2, 10, QLatin1Char('0'))
+                                           .arg(timeLeft % 60, 2, 10, QLatin1Char('0')));
+            break;
+        default:
+            break;
+    }
 }
 
 void Duolingo::ShowHelp() {
     QString helpText;
 
-    if (stackedWidget->currentIndex() == 0) {
-        helpText =
-            "Добро пожаловать в приложение для изучения испанского языка!\n\n"
-            "Выберите упражнение, чтобы начать:\n"
-            "- Новые слова: Появляется новые слова появляются по 5 штук, для перехода к следующим "
-            "нужно нажать 'Отправить'\n"
-            "- Перевод: Переведите русские слова на испанский\n"
-            "- Грамматика: Выберите правильное слово или форму слова\n\n"
-            "Также вы можете изменить сложность в меню.";
-    } else if (stackedWidget->currentWidget()->findChild<QTextEdit*>()) {
-        helpText =
-            "Помощь в упражнении на перевод:\n\n"
-            "Напишите испанский перевод слова, которое дано вам на русском.\n"
-            "Ударения над гласными и уникальные буквы для испанского важны, приложение вам их не "
-            "простит.\n"
-            "Пример: 'Дерево' должно переводиться как 'Árbol'";
-    } else if (stackedWidget->currentWidget()->findChild<QRadioButton*>()) {
-        helpText =
-            "Помощь в упражнении на грамматику:\n\n"
-            "Выберите правильное слово или форму слова, чтобы дополнить предложение.\n"
-            "Обращайте внимание на лицо и время.\n"
-            "Пример: 'Las ventanas ___ (soy) grandes' должно быть дополнено с помощь 'son'";
+    switch (stackedWidget->currentIndex()) {
+        case 0:  // Главная
+            helpText =
+                "Добро пожаловать в приложение для изучения испанского языка!\n\n"
+                "Выберите упражнение, чтобы начать:\n"
+                "- Новые слова: Появляется новые слова появляются по 5 штук, для перехода к "
+                "следующим "
+                "нужно нажать 'Отправить'\n"
+                "- Перевод: Переведите русские слова на испанский\n"
+                "- Грамматика: Выберите правильное слово или форму слова\n\n"
+                "Также вы можете изменить сложность в меню.";
+            break;
+        case 1:  // Слова
+            helpText = "No tengo ni idea, y tiene que seguir así\n🤖🛀🛌";
+            break;
+        case 2:  // Перевод
+            helpText =
+                "Помощь в упражнении на перевод:\n\n"
+                "Напишите испанский перевод слова, которое дано вам на русском.\n"
+                "Ударения над гласными и уникальные буквы для испанского важны, приложение вам их "
+                "не "
+                "простит.\n"
+                "Пример: 'Дерево' должно переводиться как 'Árbol'";
+            break;
+        case 3:  // Грамматика
+            helpText =
+                "Помощь в упражнении на грамматику:\n\n"
+                "Выберите правильное слово или форму слова, чтобы дополнить предложение.\n"
+                "Обращайте внимание на лицо и время.\n"
+                "Пример: 'Las ventanas ___ (soy) grandes' должно быть дополнено с помощь 'son'";
+            break;
+        default:
+            helpText = "EEEEEEL PRIMOOOOOO";
+            break;
     }
 
     QMessageBox::information(this, "Help", helpText);
 }
 
 void Duolingo::ShowDifficultyDialog() {
-    QStringList difficulties = {"Beginner", "Intermediate", "Advanced"};
+    QStringList difficulties = {"Начинающий", "Продвинутый", "Эксперт", "Носитель"};
     bool ok;
     QString newDifficulty = QInputDialog::getItem(
-        this, "Set Difficulty", "Select difficulty level:", difficulties,
+        this, "Выбор сложности", "Выберите уровень сложности:", difficulties,
         difficulties.indexOf(currentDifficulty), false, &ok);
+
     if (ok) {
         currentDifficulty = newDifficulty;
         QMessageBox::information(
-            this, "Difficulty Changed", QString("Difficulty set to %1").arg(currentDifficulty));
+            this, "Сложность изменена",
+            QString("Установлена сложность: %1").arg(currentDifficulty));
     }
 }
 
-void Duolingo::PlaySound(bool correct) {
+void Duolingo::PlaySound(const bool correct) {
     QAudioOutput* audioOutput = new QAudioOutput(this);  // NOLINT
     player->setAudioOutput(audioOutput);
 
@@ -522,4 +602,11 @@ void Duolingo::keyPressEvent(QKeyEvent* event) {
 }
 
 void Duolingo::ShowRating() {
+    QMessageBox::information(this, "Рейтинг", "Функция рейтинга пока в разработке.");
+}
+
+Duolingo::~Duolingo() {
+    delete player;
+    delete exerciseTimer;
+    delete countdownTimer;
 }
