@@ -10,7 +10,7 @@
 #include <QRadioButton>
 #include <QTextEdit>
 #include <QVBoxLayout>
-#include <qlistwidget.h>
+#include <QListWidget>
 
 // TODO добавить возможность переводить предложения, где надо вставить текст
 
@@ -65,16 +65,16 @@ Duolingo::Duolingo(QWidget* parent)  // NOLINT
 }
 
 void Duolingo::CreatePages() {
-    QWidget* welcomeScreen = new QWidget();                                               // NOLINT
-    QVBoxLayout* welcomeLayout = new QVBoxLayout(welcomeScreen);                          // NOLINT
-    QLabel* text = new QLabel("Добро пожаловать в приложение для изучения испанского!");  // NOLINT
+    QWidget* welcomeScreen = new QWidget();                       // NOLINT
+    QVBoxLayout* welcomeLayout = new QVBoxLayout(welcomeScreen);  // NOLINT
+    std::string s = "Добро пожаловать в приложение для изучения испанского!";
     if (currentDifficulty == "start") {
         qDebug() << currentDifficulty;
-        text = new QLabel(
-            "Добро пожаловать в приложение для изучения испанского!\n"
+        s = "Добро пожаловать в приложение для изучения испанского!\n"
             "Пройдите тест, чтобы определить Ваш уровень владения языком\n(позже этот уровень "
-            "можно будет изменить в меню)");
+            "можно будет изменить в меню)";
     }
+    QLabel* text = new QLabel(s.c_str());  // NOLINT
     welcomeLayout->addWidget(text, 0, Qt::AlignCenter);
     stackedWidget->addWidget(welcomeScreen);
 
@@ -106,19 +106,18 @@ void Duolingo::LearnPage(QVBoxLayout* layout) {
     QWidget* statusWidget = new QWidget();                      // NOLINT
     QHBoxLayout* statusLayout = new QHBoxLayout(statusWidget);  // NOLINT
 
-    learnProgressBar = new QProgressBar();
+    learnProgressBar = new QProgressBar();                      // NOLINT
     learnProgressBar->setRange(0, 5);
     learnProgressBar->setValue(0);
-    learnScoreLabel = new QLabel("Результат: 0");
-    learnTimerLabel = new QLabel("Время: 00:00");
+    learnScoreLabel = new QLabel("Результат: 0");               // NOLINT
+    learnTimerLabel = new QLabel("Время: 00:00");               // NOLINT
 
     statusLayout->addWidget(learnProgressBar);
     statusLayout->addWidget(learnScoreLabel);
     statusLayout->addWidget(learnTimerLabel);
 
-
-    learnExerciseWidget = new QWidget();
-    learnExerciseWidget->setLayout(new QVBoxLayout());
+    learnExerciseWidget = new QWidget();                 // NOLINT
+    learnExerciseWidget->setLayout(new QVBoxLayout());   // NOLINT
 
     QPushButton* submit = new QPushButton("Отправить");  // NOLINT
     connect(submit, &QPushButton::clicked, this, &Duolingo::OnSubmitClicked);
@@ -141,7 +140,6 @@ void Duolingo::TranslationPage(QVBoxLayout* layout) {
     statusLayout->addWidget(translateProgressBar);
     statusLayout->addWidget(translateScoreLabel);
     statusLayout->addWidget(translateTimerLabel);
-
 
     translationExerciseWidget = new QWidget();
     translationExerciseWidget->setLayout(new QVBoxLayout());
@@ -167,7 +165,6 @@ void Duolingo::GrammarPage(QVBoxLayout* layout) {
     statusLayout->addWidget(grammarProgressBar);
     statusLayout->addWidget(grammarScoreLabel);
     statusLayout->addWidget(grammarTimerLabel);
-
 
     grammarExerciseWidget = new QWidget();
     grammarExerciseWidget->setLayout(new QVBoxLayout());
@@ -207,16 +204,17 @@ void Duolingo::CreateCommonPageElements(QVBoxLayout* layout) {
 }
 */
 
-void Duolingo::IsModeChanged(const int index) {
+void Duolingo::IsModeChanged(int index) {
     mode = index;
+    countdownTimer->stop();
+    exerciseTimer->stop();
+
     if (index == 1) {
         OnLearnClicked();
     } else if (index == 2) {
         OnTranslationClicked();
     } else if (index == 3) {
         OnGrammarClicked();
-    } else {
-        countdownTimer->stop();
     }
 }
 
@@ -314,13 +312,12 @@ void Duolingo::ShowLearnExercise() {
     }
 
     QVBoxLayout* exerciseLayout = qobject_cast<QVBoxLayout*>(learnExerciseWidget->layout());
-    QLabel* wordLabel = new QLabel(translationExercises[currentExercise].second);  // NOLINT
     QLabel* instruction = new QLabel("Запомните это слово:");                      // NOLINT
+    QLabel* wordLabel = new QLabel(translationExercises[currentExercise].second);  // NOLINT
 
     exerciseLayout->addWidget(instruction);
     exerciseLayout->addWidget(wordLabel);
-
-    stackedWidget->setCurrentIndex(1);
+    stackedWidget->setCurrentIndex(1);  // Переключение виджета на страницу "Learn"
 }
 
 void Duolingo::ShowTranslationExercise() {
@@ -344,7 +341,7 @@ void Duolingo::ShowTranslationExercise() {
     exerciseLayout->addWidget(wordLabel);
     exerciseLayout->addWidget(answerEdit);
 
-    stackedWidget->setCurrentIndex(2);
+    // stackedWidget->setCurrentIndex(2);
 }
 
 void Duolingo::ShowGrammarExercise() {
@@ -371,9 +368,8 @@ void Duolingo::ShowGrammarExercise() {
 
     exerciseLayout->addWidget(questionLabel);
 
-    stackedWidget->setCurrentIndex(3);
+    // stackedWidget->setCurrentIndex(3);
 }
-
 
 void Duolingo::OnSubmitClicked() {
     int currentPage = stackedWidget->currentIndex();
@@ -388,8 +384,24 @@ void Duolingo::OnSubmitClicked() {
             FinishExercise(true);
         }
     } else if (currentPage == 2) {
+        currentExercise++;
+        translateProgressBar->setValue(translateProgressBar->value() + 1);
+
+        if (currentExercise < translationExercises.size()) {
+            ShowTranslationExercise();
+        } else {
+            FinishExercise(true);
+        }
         CheckTranslationAnswer();
     } else if (currentPage == 3) {
+        currentExercise++;
+        grammarProgressBar->setValue(grammarProgressBar->value() + 1);
+
+        if (currentExercise < grammarExercises.size()) {
+            ShowGrammarExercise();
+        } else {
+            FinishExercise(true);
+        }
         CheckGrammarAnswer();
     }
 }
@@ -406,7 +418,7 @@ void Duolingo::CheckTranslationAnswer() {
     if (IsAnswerCorrect(userAnswer, correctAnswer)) {
         PlaySound(true);
         currentExercise++;
-        learnProgressBar->setValue(learnProgressBar->value() + 1);
+        translateProgressBar->setValue(translateProgressBar->value() + 1);
         wrongAttempts = 0;
 
         if (currentExercise < translationExercises.size()) {
