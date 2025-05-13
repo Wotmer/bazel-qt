@@ -1,16 +1,17 @@
 #include "../include/duolingo.h"
 
+#include <QApplication>
 #include <QAudioOutput>
 #include <QComboBox>
 #include <QInputDialog>
 #include <QKeyEvent>
+#include <QListWidget>
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QTextEdit>
 #include <QVBoxLayout>
-#include <QListWidget>
 
 // TODO добавить возможность переводить предложения, где надо вставить текст
 
@@ -24,12 +25,10 @@ Duolingo::Duolingo(QWidget* parent)  // NOLINT
     // панель сверху
     QMenu* menu = menuBar()->addMenu("Меню");
     const QAction* difficulty = menu->addAction("Выбрать сложность");
-    const QAction* rating = menu->addAction("Рейтинг пользователей");
     const QAction* help = menu->addAction("Помощь");
 
     connect(difficulty, &QAction::triggered, this, &Duolingo::ShowDifficultyDialog);
     connect(help, &QAction::triggered, this, &Duolingo::ShowHelp);
-    connect(rating, &QAction::triggered, this, &Duolingo::ShowRating);
     SetupExercises();
 
     QWidget* centralWidget = new QWidget(this);            // NOLINT
@@ -62,6 +61,11 @@ Duolingo::Duolingo(QWidget* parent)  // NOLINT
     countdownTimer = new QTimer(this);  // NOLINT
     connect(exerciseTimer, &QTimer::timeout, this, &Duolingo::OnTimeout);
     connect(countdownTimer, &QTimer::timeout, this, &Duolingo::UpdateTimer);
+
+    this->installEventFilter(this);
+    learnPageWidget->installEventFilter(this);
+    translationPageWidget->installEventFilter(this);
+    grammarPageWidget->installEventFilter(this);
 }
 
 void Duolingo::CreatePages() {
@@ -69,7 +73,6 @@ void Duolingo::CreatePages() {
     QVBoxLayout* welcomeLayout = new QVBoxLayout(welcomeScreen);  // NOLINT
     std::string s = "Добро пожаловать в приложение для изучения испанского!";
     if (currentDifficulty == "start") {
-        qDebug() << currentDifficulty;
         s = "Добро пожаловать в приложение для изучения испанского!\n"
             "Пройдите тест, чтобы определить Ваш уровень владения языком\n(позже этот уровень "
             "можно будет изменить в меню)";
@@ -538,7 +541,6 @@ void Duolingo::UpdateTimerDisplay() const {
 
 void Duolingo::ShowHelp() {
     QString helpText;
-
     switch (stackedWidget->currentIndex()) {
         case 0:  // Главная
             helpText =
@@ -605,12 +607,30 @@ void Duolingo::PlaySound(const bool correct) {
     player->play();
 }
 
-void Duolingo::keyPressEvent(QKeyEvent* event) {
+/*void Duolingo::keyPressEvent(QKeyEvent* event) {
+    qDebug() << "here";
     if (event->key() == Qt::Key_H) {
-        ShowHelp();
+        QWidget* focusedWidget = QApplication::focusWidget();
+        if (!focusedWidget || focusedWidget == this) {
+            if (!qobject_cast<QTextEdit*>(focusedWidget)) {
+                ShowHelp();
+            }
+        }
     } else {
         QMainWindow::keyPressEvent(event);
     }
+}*/
+
+bool Duolingo::eventFilter(QObject* obj, QEvent* event) {
+    QKeyEvent* keyEvent = static_cast<QKeyEvent*>(event);
+    if (keyEvent->key() == Qt::Key_H) {
+        QWidget* focusedWidget = QApplication::focusWidget();
+        if (!qobject_cast<QTextEdit*>(focusedWidget) && !qobject_cast<QLineEdit*>(focusedWidget)) {
+            ShowHelp();
+            return true;
+        }
+    }
+    return QMainWindow::eventFilter(obj, event);
 }
 
 void Duolingo::ShowRating() {

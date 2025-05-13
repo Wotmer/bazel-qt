@@ -27,7 +27,8 @@ class Duolingo : public QMainWindow {
     ~Duolingo() override;
 
    protected:
-    void keyPressEvent(QKeyEvent* event) override;
+    //void keyPressEvent(QKeyEvent* event) override;
+    bool eventFilter(QObject* obj, QEvent* event) override;
 
    private slots:
     void OnLearnClicked();
